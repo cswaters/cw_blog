@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>R on Questioning Certainty</title>
+    <link>/categories/r/</link>
+    <description>Recent content in R on Questioning Certainty</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 08 Sep 2018 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/categories/r/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Extracting Odds from Sportsbook Feeds Using R</title>
+      <link>/2018/09/08/extracting-odds-from-sportsbook-feeds-using-r/</link>
+      <pubDate>Sat, 08 Sep 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/09/08/extracting-odds-from-sportsbook-feeds-using-r/</guid>
+      <description>Finding Feeds There’s some sportsbooks’ that post the address to their odds feed on the website. Other times it’s an open secret. Either way, if you do a little digging you’re going to find bookmaker feeds. (We’re only interested in free feeds here, there’s plenty of services you can pay for.)
+What format Data is transfered over the net is many different forms. REST and JSON, (god forbid) SOAP, and XML are the formats you’re likley to come across.</description>
+    </item>
+    
+    <item>
+      <title>NFL Ratings via MLE</title>
+      <link>/2018/06/23/nfl-ratings-via-mle/</link>
+      <pubDate>Sat, 23 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/06/23/nfl-ratings-via-mle/</guid>
+      <description>Rating NFL Teams - Wayne Winston’s method In Wayne Winston’s book Mathletics he devotes a chapter to “Rating Sports Teams.” This technique is also covered in a couple of his other wonderful excel books. The technique is covered (less thorougly) in an older article avaiable on the Office site, titled “Using Solver to Rate Sports Teams”.
+Let’s implement a very simple version of this in R. I’m not an optimization expert.</description>
+    </item>
+    
+    <item>
+      <title>Working with semi-unstructred text in R</title>
+      <link>/2017/11/08/working-with-semi-unstructred-text-in-r/</link>
+      <pubDate>Wed, 08 Nov 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/11/08/working-with-semi-unstructred-text-in-r/</guid>
+      <description>Motivation Toying with an classification problem, that uses the uses the Federalist Papers, I became more interested in converting unstructured text into a format for analysis than the actual model. The goal was to train the classifier on known author and use that model to predict the author of the dozen or so essays where authorship is unknown (or at least debatable).
+I didn’t have the original data set. Let’s see how trivial it is to create the document.</description>
+    </item>
+    
+    <item>
+      <title>Scraping NFL data with R</title>
+      <link>/2017/10/06/scraping-nfl-data-with-r/</link>
+      <pubDate>Fri, 06 Oct 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/10/06/scraping-nfl-data-with-r/</guid>
+      <description>Scraping data with R The packages needed.
+library(tidyverse) library(rvest) library(stringr) Read Page from url Sports data is all over the internet. Some of it is in a nice downloadable format. For example, it’s possible download almost all of the information in CSV format from pro-football-reference (or one of their other sites like &amp;lt;baseball-reference.com&amp;gt;). Other times the data is in a nice format but there’s no easy way to export or download it.</description>
+    </item>
+    
+    <item>
+      <title>Home Field Advantage in the NFL</title>
+      <link>/2017/09/25/home-field-advantage-in-the-nfl/</link>
+      <pubDate>Mon, 25 Sep 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/09/25/home-field-advantage-in-the-nfl/</guid>
+      <description>Calculating HFA for NFL the Easy Way We are going to come up with a number for home field advantage (pretend we don’t already know that 3 points is a pretty solid estimate).
+Since we only need team, score, and location we could use just about any dataset. For NFL data it’s hard to beat ArmchairAnalysis for quality and price.
+The GAME.csv file contains all the information we’re looking for (which isn’t much more than team scores).</description>
+    </item>
+    
+    <item>
+      <title>Creating a football dataset, Take Two</title>
+      <link>/2017/08/25/creating-a-football-dataset-take-two/</link>
+      <pubDate>Fri, 25 Aug 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/08/25/creating-a-football-dataset-take-two/</guid>
+      <description>A new source I updated my previous post. The data used to create db wasn’t reliable and missing games. Because of that I set out to find a new free source. I found a great one. Dr. Wags Picks - Algorithm Based Sports Handicapper makes NCAA and NFL data available on his blog. He even tries to follow the repole format.
+This time we’re going to grab the NCAA and NFL data.</description>
+    </item>
+    
+    <item>
+      <title>Creating an NFL point spread dataset</title>
+      <link>/2017/08/20/creating-an-nfl-point-spread-dataset/</link>
+      <pubDate>Sun, 20 Aug 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/08/20/creating-an-nfl-point-spread-dataset/</guid>
+      <description>library(tidyverse) library(lubridate) Repole Data There’s a few R packages for sports data. Non, to my knowledge, focus on NFL football. More importantly, none are contain point spread and total data.
+The first question we need to solve is where are we going to get the data. There’s a few options.
+We can buy the data. Armchair Analysis is well worth the price. It goes far beyond scores and spreads. But it’s overkill for our needs.</description>
+    </item>
+    
+    <item>
+      <title>Bad Bet: Do sports handicappers win? Part 1</title>
+      <link>/2017/05/12/bad-bet-do-sports-handicappers-win-part-1/</link>
+      <pubDate>Fri, 12 May 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/05/12/bad-bet-do-sports-handicappers-win-part-1/</guid>
+      <description>Most of this was written a while back, I wouldn’t code some of the simulations the same way now, but everything still works so it’s being left as is.
+The packages needed for examples below.
+library(gridExtra) library(tidyverse) theme_set(theme_minimal()) Selling Flap-Doddle Handicappers that sell their picks to the general public don’t win and are a bad bet for gamblers.
+note: the only long term documented exception to this rule I know of is RAS but as they say “one point does not a trend make.</description>
+    </item>
+    
+    <item>
+      <title>Bad Bet: Do sports handicappers win? Part 2</title>
+      <link>/2017/05/12/bad-bet-do-sports-handicappers-win-part-2/</link>
+      <pubDate>Fri, 12 May 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/05/12/bad-bet-do-sports-handicappers-win-part-2/</guid>
+      <description>So far we’ve been using a flat betting model where our bettors bet size never varies. While this might be easier to model it isn’t very realistic. We could go with something like the Kelly criterion to determine the bet size but we’ll opt for easy again and use “x” percentage of the bettor’s bankroll. This means instead of using an infinite bankroll where a player can never run out of money we will start with a fixed sum.</description>
+    </item>
+    
+  </channel>
+</rss>

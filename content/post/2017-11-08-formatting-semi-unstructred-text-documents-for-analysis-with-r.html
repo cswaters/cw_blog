@@ -1,0 +1,687 @@
+---
+title: Working with semi-unstructred text in R
+author: Cory Waters
+date: '2017-11-08'
+slug: working-with-semi-unstructred-text-in-r
+categories:
+  - R
+tags:
+  - data
+  - text
+---
+
+
+
+<div id="motivation" class="section level3">
+<h3>Motivation</h3>
+<p>Toying with an classification problem, that uses the uses the <a href="https://en.wikipedia.org/wiki/The_Federalist_Papers">Federalist Papers</a>, I became more interested in converting unstructured text into a format for analysis than the actual model. The goal was to train the classifier on known author and use that model to predict the author of the dozen or so essays where authorship is unknown (or at least debatable).</p>
+<p>I didn’t have the original data set. Let’s see how trivial it is to create the document.</p>
+</div>
+<div id="getting-the-original-document" class="section level3">
+<h3>Getting the original document</h3>
+<p>There’s an R package for almost anything you can think of. This example is no different. The <a href="https://en.wikipedia.org/wiki/The_Federalist_Papers">Federalist Papers</a> are available in a text document through <a href="https://www.gutenberg.org/">Project Gutenberg</a>. <a href="https://github.com/ropenscilabs/gutenbergr">gutenbergr</a> downloads documents from Project Gutenberg as data frames.</p>
+<p>Download the document and remove the blank lines (in this case rows).</p>
+<pre class="r"><code>library(gutenbergr)
+fdrslt &lt;- gutenberg_download(18) # Federalist Papers id number=18 in PG lib
+head(fdrslt, 20) %&gt;% 
+  filter(text != &#39;&#39;) %&gt;% # hide blank lines to show more text output
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">gutenberg_id</th>
+<th align="left">text</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">18</td>
+<td align="left">FEDERALIST. No. 1</td>
+</tr>
+<tr class="even">
+<td align="right">18</td>
+<td align="left">General Introduction</td>
+</tr>
+<tr class="odd">
+<td align="right">18</td>
+<td align="left">For the Independent Journal.</td>
+</tr>
+<tr class="even">
+<td align="right">18</td>
+<td align="left">HAMILTON</td>
+</tr>
+<tr class="odd">
+<td align="right">18</td>
+<td align="left">To the People of the State of New York:</td>
+</tr>
+<tr class="even">
+<td align="right">18</td>
+<td align="left">AFTER an unequivocal experience of the inefficacy of the</td>
+</tr>
+<tr class="odd">
+<td align="right">18</td>
+<td align="left">subsisting federal government, you are called upon to deliberate on</td>
+</tr>
+<tr class="even">
+<td align="right">18</td>
+<td align="left">a new Constitution for the United States of America. The subject</td>
+</tr>
+<tr class="odd">
+<td align="right">18</td>
+<td align="left">speaks its own importance; comprehending in its consequences</td>
+</tr>
+<tr class="even">
+<td align="right">18</td>
+<td align="left">nothing less than the existence of the UNION, the safety and welfare</td>
+</tr>
+<tr class="odd">
+<td align="right">18</td>
+<td align="left">of the parts of which it is composed, the fate of an empire in many</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div id="come-up-with-a-plan" class="section level3">
+<h3>Come up with a plan</h3>
+<p>Right now we have a data frame with two columns, <code>gutenberg_id</code> and <code>text</code>. The id is important with multiple documents but in this situation it’s useless. Also, get rid of all the blank spaces in the data frame. Save the output to a new data frame. Why? So we can come back to the original if needed without hitting up the Gutenberg API again.</p>
+<pre class="r"><code>f_papers &lt;- fdrslt %&gt;% 
+  filter(text != &#39;&#39;) %&gt;% 
+  select(text)
+
+paste(&quot;There&#39;s&quot;, nrow(f_papers), &quot;lines in the dataframe.&quot;)</code></pre>
+<pre><code>## [1] &quot;There&#39;s 18790 lines in the dataframe.&quot;</code></pre>
+<p><a href="https://www.loc.gov/rr/program/bib/ourdocs/federalist.html">The “Federalist Papers” consist of 85 essays</a>. Those 85 essays are split up over 18790 in the <code>f_papers</code> data frame.</p>
+<p>Currently there’s no way for us to tell where one essay starts and ends (other than by hand). Then we need to find a way to label the essay with the proper author.</p>
+<p>I envision the final output is a data frame with three columns.</p>
+<ol style="list-style-type: decimal">
+<li>Essay number i.e. “Federalist Number 3”</li>
+<li>Essay author (when known)</li>
+<li>Text</li>
+</ol>
+<p>All we have is text with little structure.</p>
+</div>
+<div id="finding-the-essay-number" class="section level3">
+<h3>Finding the essay number</h3>
+<pre class="r"><code>f_papers %&gt;% 
+  head(3) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">text</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">FEDERALIST. No. 1</td>
+</tr>
+<tr class="even">
+<td align="left">General Introduction</td>
+</tr>
+<tr class="odd">
+<td align="left">For the Independent Journal.</td>
+</tr>
+</tbody>
+</table>
+<p>First line of the document is “FEDERALIST. No. 1”, it’s possible that all the essays are titled in a similar way. Because we know the number of essays in the Papers we can test our theory.</p>
+<pre class="r"><code>library(stringr) # working with text is easier with this package
+
+f_papers &lt;- f_papers %&gt;% 
+  map_df(str_to_lower) %&gt;% # everything lowercase = easier to match 
+  map_df(str_trim) # remove extra white space for matching
+
+(n &lt;- sum(str_detect(f_papers$text, &quot;federalist&quot;)))</code></pre>
+<pre><code>## [1] 87</code></pre>
+<p>The word “federalist” shows up in the document 87 times. Only a couple more than the number of essays. Is it possible that each essay is titled and the other usages can be filtered out somehow?</p>
+<p>The first 10 follow a <code>federalist. no. n</code> pattern.</p>
+<p>We could: + Search for results that follow that exact format.</p>
+<p>Then again, what if all the titles don’t conform to that structure?</p>
+<ul>
+<li>Come up with a regular expression that matches everything that’s close-ish?</li>
+</ul>
+<p>I try to stay away from regexp when possible.</p>
+<div id="stringr-to-the-rescue" class="section level4">
+<h4><code>stringr</code> to the rescue</h4>
+<p><code>str_detect</code> in the <code>stringr</code> package accomplishes exactly what’s needed. It returns a <code>T</code> or <code>F</code> value depending on if the specified text is in the vector passed to the function. Use the output vector to filter on only the rows that contain the text “federalist.” Now we can look for the extra occurrences. We’re looking for a programmatic way of separating title from text.</p>
+<pre class="r"><code>f_papers[str_detect(f_papers$text, &quot;federalist&quot;),] %&gt;% 
+  head(10) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">text</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">federalist. no. 1</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 2</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 3</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 4</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 5</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 6</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist. no. 7</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 8</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 9</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+</tr>
+</tbody>
+</table>
+<p>After some trial and error the pattern emerged of short titles and long lines of text. A quick look shows that the overwhelming majority of rows/lines have 50+ characters.</p>
+<pre class="r"><code>theme_set(theme_minimal()) # I prefer the minimal theme
+tibble(n_char = nchar(f_papers$text)) %&gt;% 
+  ggplot(aes(n_char)) +
+  geom_density() +
+  labs(x = &#39;Number of characters in line&#39;)</code></pre>
+<p><img src="/post/2017-11-08-formatting-semi-unstructred-text-documents-for-analysis-with-r_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<p>Yet, the title format contains less than 20 characters.</p>
+<pre class="r"><code>nchar(&quot;federalist no. 10&quot;)</code></pre>
+<pre><code>## [1] 17</code></pre>
+<p>Even if we increased the number of characters to thirty, (maybe “federalist number __&quot; is used somewhere) we’ll be able to zero in on the titles.</p>
+<pre class="r"><code>f_papers %&gt;% 
+  mutate(title = str_detect(f_papers$text, 
+                            &#39;federalist&#39;) &amp; nchar(text) &lt;= 30) %&gt;% 
+  filter(title == TRUE) %&gt;% 
+  nrow()</code></pre>
+<pre><code>## [1] 86</code></pre>
+<p>Using the character method we’re down to 86 instances of “federalist” but that’s still one too many. Maybe there’s a duplicate?</p>
+<pre class="r"><code>f_papers %&gt;% 
+  mutate(title = str_detect(f_papers$text, 
+                            &#39;federalist&#39;) &amp; nchar(text) &lt;= 30) %&gt;% 
+  filter(title == TRUE) %&gt;% 
+  distinct() %&gt;% 
+  nrow()</code></pre>
+<pre><code>## [1] 85</code></pre>
+<p>That’s the problem. A duplicate record in the text. We need to find it.</p>
+<pre class="r"><code>f_papers %&gt;% 
+  mutate(title = str_detect(f_papers$text, 
+                            &#39;federalist&#39;) &amp; nchar(text) &lt;= 30) %&gt;% 
+  filter(title == TRUE) %&gt;% 
+  group_by(text) %&gt;% 
+  tally(sort=TRUE) %&gt;% 
+  head() %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">text</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">federalist no. 70</td>
+<td align="right">2</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 11</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 12</td>
+<td align="right">1</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 13</td>
+<td align="right">1</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 14</td>
+<td align="right">1</td>
+</tr>
+</tbody>
+</table>
+<p>“federalist no. 70” shows up twice. We’ll use a little trick of converting the rownames into columns via the <code>rownames_to_column</code> function in the <code>tibble</code> package. Because there’s no rownames the row number will be converted to a column and is joined to the data frame.</p>
+<pre class="r"><code>f_papers %&gt;% 
+  rownames_to_column() %&gt;% 
+  filter(text == &#39;federalist no. 70&#39;)</code></pre>
+<pre><code>## # A tibble: 2 x 2
+##   rowname              text
+##     &lt;chr&gt;             &lt;chr&gt;
+## 1   14539 federalist no. 70
+## 2   14848 federalist no. 70</code></pre>
+<p>On first glance there’s a duplicate essay in the Gutenberg file. This is odd. It’s hard to believe that a popular source of information could host a “bad” version of a major document.</p>
+<p>The first ten lines are the same. We’re going to have to dig deeper.</p>
+<pre class="r"><code># we got the starting row numbers from the cell above
+f_papers[14539:14549,] == f_papers[14848:14858,]</code></pre>
+<pre><code>##       text
+##  [1,] TRUE
+##  [2,] TRUE
+##  [3,] TRUE
+##  [4,] TRUE
+##  [5,] TRUE
+##  [6,] TRUE
+##  [7,] TRUE
+##  [8,] TRUE
+##  [9,] TRUE
+## [10,] TRUE
+## [11,] TRUE</code></pre>
+</div>
+<div id="removing-the-duplicate-essay" class="section level4">
+<h4>Removing the duplicate essay</h4>
+<p>Get the starting line for next essay in the document.</p>
+<pre class="r"><code>fed_71 &lt;- f_papers %&gt;% 
+  rownames_to_column() %&gt;% 
+  filter(text == &quot;federalist no. 71&quot;) %&gt;% 
+  pull(rowname)
+
+paste(&quot;Federalist No. 71 starts on row&quot;, fed_71)</code></pre>
+<pre><code>## [1] &quot;Federalist No. 71 starts on row 15156&quot;</code></pre>
+<p>The second copy of “Federalist No. 70” starts before “Federalist No. 71,” the dupes look like they’re back to back. If they’re full duplicates they should have the same number of rows.</p>
+<pre class="r"><code>start_fed70a &lt;- 14539 # info from a few cells above
+start_fed70b &lt;- 14848
+
+nrows_fed70a &lt;- (start_fed70b - 1) - start_fed70a
+nrows_fed70b &lt;- as.numeric(fed_71) - start_fed70b
+
+nrows_fed70a == nrows_fed70b</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+<p>“Federalist No. 70” is 308 rows in this data frame.</p>
+<pre class="r"><code>end_a &lt;- start_fed70a + (nrows_fed70a - 1)
+end_b &lt;- start_fed70b + (nrows_fed70b - 1)
+
+f_papers[start_fed70a:end_a, ] %&gt;% 
+  bind_rows(f_papers[start_fed70b:end_b, ]) %&gt;% 
+  distinct() %&gt;% 
+  nrow()</code></pre>
+<pre><code>## [1] 309</code></pre>
+<p>When we combine the two essays into a data frame and call <code>distinct</code> we’re left with the same number of rows as a single essay. This means they’re perfect duplicates of one another. The plan is to filter one out.</p>
+<pre class="r"><code>f_papers &lt;- f_papers[-(start_fed70a:end_a),]</code></pre>
+<p>Now we’ll add a column with the essay title. The <code>zoo</code> package has a function <code>na.locf</code> that forward fills <code>NA</code> values until it reaches a non-<code>NA</code> value.</p>
+<pre class="r"><code>f_papers &lt;- f_papers %&gt;% 
+  mutate(title = str_detect(f_papers$text, 
+                            &#39;federalist&#39;) &amp; nchar(text) &lt;= 30,
+         fed_num = ifelse(title, text, NA),
+         fed_num = zoo::na.locf(fed_num))</code></pre>
+</div>
+</div>
+<div id="creating-an-author-table" class="section level3">
+<h3>Creating an author table</h3>
+<p>Now we need to grab the author for each essay and create a column with the information.</p>
+<p>The “Federalist Papers” is known to have three authors: Alexander Hamilton, James Madison, and John Jay. They all wrote under the pseudonym “Publius” but over time the authorship of most of the essays became known. The author for twelve of the essays is debated still to this day.</p>
+<p>Luckily, the authors (when known) are listed at the top of each essay.</p>
+<pre class="r"><code>f_papers %&gt;% 
+  head(5) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">text</th>
+<th align="left">title</th>
+<th align="left">fed_num</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">federalist. no. 1</td>
+<td align="left">TRUE</td>
+<td align="left">federalist. no. 1</td>
+</tr>
+<tr class="even">
+<td align="left">general introduction</td>
+<td align="left">FALSE</td>
+<td align="left">federalist. no. 1</td>
+</tr>
+<tr class="odd">
+<td align="left">for the independent journal.</td>
+<td align="left">FALSE</td>
+<td align="left">federalist. no. 1</td>
+</tr>
+<tr class="even">
+<td align="left">hamilton</td>
+<td align="left">FALSE</td>
+<td align="left">federalist. no. 1</td>
+</tr>
+<tr class="odd">
+<td align="left">to the people of the state of new york:</td>
+<td align="left">FALSE</td>
+<td align="left">federalist. no. 1</td>
+</tr>
+</tbody>
+</table>
+<p>A similar method to the one used to get the essay number can be used to get the author.</p>
+<pre class="r"><code>authors &lt;- c(&#39;madison&#39;, &#39;hamilton&#39;, &#39;jay&#39;)
+
+author_table &lt;- f_papers %&gt;% 
+  mutate(author = text %in% authors) %&gt;% 
+  filter(author == TRUE) %&gt;% 
+  select(fed_num, text)
+
+author_table %&gt;% 
+  head(10) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">fed_num</th>
+<th align="left">text</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">federalist. no. 1</td>
+<td align="left">hamilton</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 2</td>
+<td align="left">jay</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 3</td>
+<td align="left">jay</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 4</td>
+<td align="left">jay</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 5</td>
+<td align="left">jay</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 6</td>
+<td align="left">hamilton</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist. no. 7</td>
+<td align="left">hamilton</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 8</td>
+<td align="left">hamilton</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 9</td>
+<td align="left">hamilton</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+</tr>
+</tbody>
+</table>
+<p>If there’s 85 essays and the authorship of 12 is in dispute there should be 73 rows in the <code>author_table</code>.</p>
+<pre class="r"><code>nrow(author_table)</code></pre>
+<pre><code>## [1] 71</code></pre>
+<p>That’s unfortunate. Time to dig in and find the missing records.</p>
+<pre class="r"><code>missing_authors &lt;- f_papers %&gt;% 
+  select(fed_num) %&gt;% 
+  distinct() %&gt;% 
+  anti_join(author_table)
+
+missing_authors %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">fed_num</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">federalist no. 18</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 19</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 20</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 49</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 50</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 51</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 52</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 53</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 54</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 55</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 56</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 57</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 62</td>
+</tr>
+<tr class="even">
+<td align="left">federalist. no. 63</td>
+</tr>
+</tbody>
+</table>
+<p><a href="https://www.congress.gov/resources/display/content/The+Federalist+Papers">Google turns up the info we’re looking for.</a></p>
+<p>Essays 18 through 20 were written by both Madison and Hamilton. That’s why it didn’t show up on our search. The rest of the essays were written by Hamilton or Madison, so I’m using “hamilton or madison” to mark them.</p>
+<pre class="r"><code>missing_authors$text &lt;- c(rep(&#39;hamilton and madison&#39;,3),rep(&#39;hamilton or madison&#39;, 11))
+
+author_table &lt;- author_table %&gt;% 
+  bind_rows(missing_authors)
+
+nrow(author_table)</code></pre>
+<pre><code>## [1] 85</code></pre>
+<p>The authorship table is complete and can be added to the “Federalist” text. We need to change the column from <code>text</code> in the <code>author_table</code>. <code>author</code> is already taken.</p>
+<pre class="r"><code>names(author_table) &lt;- c(&#39;fed_num&#39;,&#39;fed_author&#39;)
+f_papers &lt;- f_papers %&gt;% 
+  left_join(author_table)</code></pre>
+<p>The data frame <code>f_papers</code> now contains four columns.</p>
+<ol style="list-style-type: decimal">
+<li>Text</li>
+<li>Essay the text comes from</li>
+<li>Essay’s author</li>
+<li>Start of new essay</li>
+</ol>
+<p>At this point we can drop the <code>title</code> column, export to <code>csv</code> and call it a day. But there’s more issues.</p>
+<pre class="r"><code>f_papers %&gt;% 
+  head(8) %&gt;% 
+  select(text) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">text</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">federalist. no. 1</td>
+</tr>
+<tr class="even">
+<td align="left">general introduction</td>
+</tr>
+<tr class="odd">
+<td align="left">for the independent journal.</td>
+</tr>
+<tr class="even">
+<td align="left">hamilton</td>
+</tr>
+<tr class="odd">
+<td align="left">to the people of the state of new york:</td>
+</tr>
+<tr class="even">
+<td align="left">after an unequivocal experience of the inefficacy of the</td>
+</tr>
+<tr class="odd">
+<td align="left">subsisting federal government, you are called upon to deliberate on</td>
+</tr>
+<tr class="even">
+<td align="left">a new constitution for the united states of america. the subject</td>
+</tr>
+</tbody>
+</table>
+<div id="almost-done" class="section level4">
+<h4>Almost done</h4>
+<ul>
+<li>We don’t need the title of each essay at the top of the text if we’re identifying it in a separate column.</li>
+<li>The text between the essay title and the author publication info is not part of the essay text.</li>
+</ul>
+<p>The code below is complicated, probably not that efficient, and could be re-written in a cleaner format. However, this is a one time job and I don’t want to spend lots of time trying to solve a problem the right way when the “wrong way” works and comes to me much quicker.</p>
+<p>I’ll try to explain what’s going on in plain language. The goal is to isolate the rows of text that contain one of three things.</p>
+<ol style="list-style-type: decimal">
+<li>The essay number i.e. “federalist no. 6”</li>
+<li>The essay author i.e. “hamilton”</li>
+<li>The text between the essay number and author that contains information about the journal where the essay was published, and sometimes the date.</li>
+</ol>
+<p>We need to accept we’re not going to be able to remove 100% of the text we want to. But we want to be close to that number. Counting the number of lines between the essay number and number gives answers between four and six rows usually. That doesn’t do us much good. We need a way to count the number of lines between the number and author and match those to row numbers. Then filter out those row numbers returning only the essay text.</p>
+<p>Here’s how I approached the problem:</p>
+<ol style="list-style-type: decimal">
+<li>Get all the authors</li>
+<li>Add the row numbers as a column, change the column name to <code>start</code></li>
+<li>Match the rows where the text column contains the author(s)</li>
+<li>Return only the rows where the row is a essay number (<code>title</code>) or the author (<code>author</code>)</li>
+<li>Get the difference in between the different row numbers (<code>start</code>), add it as a column (<code>d</code>)</li>
+<li>Filter to only return essay number (<code>title</code>) rows</li>
+<li>Add the difference between the essay number and author (<code>d</code>) to the <code>start</code> column, this is the <code>stop</code> column.</li>
+<li>Return (via <code>select</code>) only the <code>start</code> and <code>stop</code> column.</li>
+</ol>
+<p>This data frame we assign to <code>info_rows</code> contains the starting row number for each new essay in the <code>start</code> column and the author row number for that same essay in the <code>stop</code> column. The numbers in between those two numbers are the rows we need to filter out.</p>
+<p>Now we need a way to generate all the row numbers to filter out. The easiest option I could think of is passing the start and stop columns to <code>seq</code> via <code>map</code>. The output needs to be converted to a vector, <code>unlist</code> works perfectly. This vector of row numbers can be passed to a data frame to either filter or filter out the desired rows.</p>
+<pre class="r"><code>authors &lt;- unique(f_papers$fed_author)
+
+info_rows &lt;- f_papers %&gt;% 
+  rownames_to_column() %&gt;% 
+  mutate(author = text %in% authors,
+         start = as.numeric(rowname)) %&gt;% 
+  select(title, author, start) %&gt;% 
+  filter(title == TRUE | author == TRUE) %&gt;% 
+  mutate(d = c(diff(start),0)) %&gt;% 
+  filter(title == TRUE) %&gt;% 
+  mutate(stop = start + d) %&gt;% 
+  select(start,stop)
+  
+
+info_idx &lt;- map2(info_rows$start,
+                 info_rows$stop,
+                 ~ seq(.x, .y)) %&gt;%
+                 unlist()
+
+extra_info &lt;- f_papers[info_idx, ]
+f_papers &lt;- f_papers %&gt;% 
+  anti_join(extra_info) %&gt;% 
+  select(fed_num, fed_author, text)</code></pre>
+<pre><code>## Joining, by = c(&quot;text&quot;, &quot;title&quot;, &quot;fed_num&quot;, &quot;fed_author&quot;)</code></pre>
+<pre class="r"><code>glimpse(f_papers)</code></pre>
+<pre><code>## Observations: 18,051
+## Variables: 3
+## $ fed_num    &lt;chr&gt; &quot;federalist. no. 1&quot;, &quot;federalist. no. 1&quot;, &quot;federali...
+## $ fed_author &lt;chr&gt; &quot;hamilton&quot;, &quot;hamilton&quot;, &quot;hamilton&quot;, &quot;hamilton&quot;, &quot;ha...
+## $ text       &lt;chr&gt; &quot;to the people of the state of new york:&quot;, &quot;after a...</code></pre>
+<p>Our final output fits the format listed at the start of the article. A data frame with three columns.</p>
+<ol style="list-style-type: decimal">
+<li>Essay number</li>
+<li>Essay author</li>
+<li>Text</li>
+</ol>
+<p>We’re ready to export to <code>.csv</code></p>
+<pre class="r"><code>write_csv(f_papers, &#39;federalist_papers_parsed.csv&#39;)</code></pre>
+</div>
+</div>
+<div id="whats-next" class="section level3">
+<h3>What’s next?</h3>
+<p>We’re now ready for analysis. We can use one of the R packages tailored to text manipulation. My favorite is <code>tidytext</code>. Check out the book <a href="http://tidytextmining.com">“Text Mining with R”</a> for a fantastic explanation of the <code>tidytext</code> package (written by the same authors), and text analysis in general.</p>
+<pre class="r"><code>library(tidytext)
+
+# word analysis formatting
+tidy_fed_words &lt;- f_papers %&gt;%
+  unnest_tokens(word, text)
+ 
+# or ngrams
+f_papers %&gt;% 
+  unnest_tokens(ngram, text, token = &quot;ngrams&quot;, n = 2) %&gt;% 
+  head(10) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">fed_num</th>
+<th align="left">fed_author</th>
+<th align="left">ngram</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">to the</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">the people</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">people of</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">of the</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">the state</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">state of</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">of new</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">new york</td>
+</tr>
+<tr class="odd">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">york among</td>
+</tr>
+<tr class="even">
+<td align="left">federalist no. 10</td>
+<td align="left">madison</td>
+<td align="left">among the</td>
+</tr>
+</tbody>
+</table>
+</div>

@@ -1,0 +1,650 @@
+---
+title: Home Field Advantage in the NFL
+author: Cory Waters
+date: '2017-09-25'
+slug: home-field-advantage-in-the-nfl
+categories:
+  - R
+tags:
+  - NFL
+---
+
+
+
+<div id="calculating-hfa-for-nfl-the-easy-way" class="section level3">
+<h3>Calculating HFA for NFL the Easy Way</h3>
+<p>We are going to come up with a number for home field advantage (pretend we don’t already know that 3 points is a pretty solid estimate).</p>
+<p>Since we only need team, score, and location we could use just about any dataset. For NFL data it’s hard to beat <a href="http://www.armchairanalysis.com">ArmchairAnalysis</a> for quality and price.</p>
+<p>The <code>GAME.csv</code> file contains all the information we’re looking for (which isn’t much more than team scores).</p>
+<p>A quick overview of the code below:</p>
+<ol style="list-style-type: decimal">
+<li><code>file.path</code> creates a path to a file or directory in a platform indepenent way. <code>~</code> on a mac is shorthand for your home directory</li>
+<li><code>dir</code> lists all the files in the directory passed to it. We have it return only files with ‘GAME’ in it (one in this case), and return the full path to the file.</li>
+</ol>
+<pre class="r"><code>library(tidyverse)
+file_path &lt;- file.path(&quot;~&quot;,&quot;Dropbox&quot;,&quot;data_sets&quot;,&quot;ArmchairAnalysis&quot;,&quot;nfl_00-16&quot;)
+
+game_file &lt;- dir(file_path, full.names = TRUE, pattern = &#39;GAME&#39;)
+nfl &lt;- read_csv(game_file)
+nfl %&gt;% glimpse()</code></pre>
+<pre><code>## Observations: 4,523
+## Variables: 17
+## $ gid  &lt;int&gt; 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17...
+## $ seas &lt;int&gt; 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 2000, 200...
+## $ wk   &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, ...
+## $ day  &lt;chr&gt; &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;...
+## $ v    &lt;chr&gt; &quot;SF&quot;, &quot;JAC&quot;, &quot;PHI&quot;, &quot;NYJ&quot;, &quot;IND&quot;, &quot;SEA&quot;, &quot;CHI&quot;, &quot;TB&quot;, &quot;DE...
+## $ h    &lt;chr&gt; &quot;ATL&quot;, &quot;CLE&quot;, &quot;DAL&quot;, &quot;GB&quot;, &quot;KC&quot;, &quot;MIA&quot;, &quot;MIN&quot;, &quot;NE&quot;, &quot;NO&quot;...
+## $ stad &lt;chr&gt; &quot;Georgia Dome&quot;, &quot;Cleveland Browns Stadium&quot;, &quot;Texas Stadiu...
+## $ temp &lt;int&gt; 79, 78, 109, 77, 90, 89, 65, 71, 89, 80, 64, 74, 80, 73, ...
+## $ humd &lt;int&gt; NA, 63, 19, 66, 50, 59, NA, 93, NA, 79, 49, 84, 98, 78, N...
+## $ wspd &lt;int&gt; NA, 9, 5, 5, 8, 13, NA, 5, NA, 3, 10, 8, NA, 10, NA, 5, 8...
+## $ wdir &lt;chr&gt; NA, &quot;NE&quot;, &quot;S&quot;, &quot;E&quot;, &quot;E&quot;, &quot;E&quot;, NA, &quot;VAR&quot;, NA, &quot;VAR&quot;, &quot;W&quot;, ...
+## $ cond &lt;chr&gt; &quot;Dome&quot;, &quot;Sunny&quot;, &quot;Sunny&quot;, &quot;Mostly Cloudy&quot;, &quot;Mostly Sunny&quot;...
+## $ surf &lt;chr&gt; &quot;AstroTurf&quot;, &quot;Grass&quot;, &quot;AstroTurf&quot;, &quot;Grass&quot;, &quot;Grass&quot;, &quot;Gra...
+## $ ou   &lt;dbl&gt; 42.5, 38.0, 40.0, 36.0, 44.0, 36.0, 47.0, 35.5, 39.5, 40....
+## $ sprv &lt;dbl&gt; 7.0, -10.0, 6.0, 2.5, -3.0, 3.0, 4.5, -3.0, 1.0, 7.0, 7.0...
+## $ ptsv &lt;int&gt; 28, 27, 41, 20, 27, 0, 27, 21, 14, 16, 6, 16, 17, 13, 36,...
+## $ ptsh &lt;int&gt; 36, 7, 14, 16, 14, 23, 30, 16, 10, 21, 9, 0, 20, 16, 41, ...</code></pre>
+<p>Now that we have the NFL data loaded up and took a <code>glimpse</code> of it we can begin to calculate HFA for different teams and time frames.</p>
+<p>The <code>nfl</code> dataset goes back to 2000 and up through 2016. Currently the NFL has 32 teams its been that way since 2002. Because of that we will filter out the first two seasons of the <code>nfl</code> dataset so we can compare “apples to apples.”</p>
+<pre class="r"><code>nfl &lt;- filter(nfl, seas &gt;= 2002)</code></pre>
+<p>Also, the Rams decided to move to LA. This really screws with our records. Normally I’d change any “STL” record to “LA” because we’re still dealing with the same team. But in this case where the focus is location I’ve decided to leave as is.</p>
+</div>
+<div id="removing-super-bowl-games" class="section level3">
+<h3>Removing Super Bowl games</h3>
+<p>We need to make a few more choices before we begin. With rare exceptions NFL teams don’t play on a neutral field meaning one of the two teams is at home. The biggest exception to this rule is the Super Bowl. Therefore Super Bowl results need to be filtered out of the dataframe.</p>
+<p>The <code>nfl</code> dataframe contains a column <code>wk</code> which stands for week. Looking at the unique values we can isolate the week of the Super Bowl (in theory it should be the last week). It’s also important to see if the dataset contains pre-season games or not, if the data has pre-season those games should be fitered out. Our <code>nfl</code> data doesn’t have pre-season.</p>
+<pre class="r"><code>unique(nfl$wk)</code></pre>
+<pre><code>##  [1]  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21</code></pre>
+<p>Week 21 should be the Super Bowl each season so if the dataframe is filtered on <code>wk</code> 21 we should see the Super Bowl matchups for the past 15 years. My memory isn’t great so we will arrange the dataframe so that the most recent games are on top.</p>
+<pre class="r"><code>nfl %&gt;% 
+  filter(wk == 21) %&gt;% 
+  arrange(desc(seas)) %&gt;% 
+  select(seas, wk, v, h)</code></pre>
+<pre><code>## # A tibble: 15 x 4
+##     seas    wk     v     h
+##    &lt;int&gt; &lt;int&gt; &lt;chr&gt; &lt;chr&gt;
+##  1  2016    21    NE   ATL
+##  2  2015    21   CAR   DEN
+##  3  2014    21    NE   SEA
+##  4  2013    21   SEA   DEN
+##  5  2012    21   BAL    SF
+##  6  2011    21   NYG    NE
+##  7  2010    21   PIT    GB
+##  8  2009    21    NO   IND
+##  9  2008    21   PIT   ARI
+## 10  2007    21   NYG    NE
+## 11  2006    21   IND   CHI
+## 12  2005    21   SEA   PIT
+## 13  2004    21    NE   PHI
+## 14  2003    21   CAR    NE
+## 15  2002    21   OAK    TB</code></pre>
+<p>Looking at the list confirms that <code>wk</code> 21 is the Super Bowl. Going forward that week will be filtered out of all calculations.</p>
+<pre class="r"><code>nfl &lt;- filter(nfl, wk != 21)</code></pre>
+<p>The next choice is whether or not to include playoff games. A case can be made for either side of this issue but this isn’t the place for that discussion. We will include playoff games in the calculations. If we decide to run the calculations again without playoff games we’d filter out everything above week 17.</p>
+<div id="neutral-field-games" class="section level4">
+<h4>Neutral Field Games</h4>
+<p>There’s one last problem that needs to be dealt with if we’re concerned with accurate numbers, international games. Since 2007 the <a href="https://en.wikipedia.org/wiki/NFL_International_Series">NFL has played a number of regular season games outside the United States</a>. Most of these games have been played at Wembley Stadium in London but a few have been played at Twickenham, London or Estadio Azteca in Mexico City. None of these games can be considered a “home” game for either team regardless of what color shirt they wear. The Bills played a <a href="https://en.wikipedia.org/wiki/Bills_Toronto_Series">series of games in Toronto</a> from 2008 to 2012, these remove these. The dataset has a column <code>stad</code>. Filter out the games played in these stadiums.</p>
+<pre class="r"><code>nfl &lt;- nfl %&gt;% 
+  filter(!stad %in% c(&quot;Azteca Stadium&quot;, 
+                      &quot;Wembley Stadium&quot;, 
+                      &quot;Rogers Centre&quot;,
+                      &quot;Twickenham, London&quot;))</code></pre>
+<p>Now, there’s probably a game or two that was played on a neutral field that we aren’t catching. A game got rescheduled, a natural disaster, etc. That <em>might</em> have a small impact when looking at HFA on a per team basis but in the overall picture it shouldn’t matter much now that we have removed that 25 or so games on a neutral site.</p>
+<p>After taking out all of those games, what’s the average HFA considering all teams since the 2000 season?</p>
+<p>There’s a few ways to calculate home field advantage.</p>
+<p>The most logical way is to add up all the home scores and add up all the visitor scores. Subtract the visitor sum from the home sum and divide that number by the total number of games.</p>
+<pre class="r"><code>(sum(nfl$ptsh) - sum(nfl$ptsv)) / dim(nfl)[1]</code></pre>
+<pre><code>## [1] 2.644657</code></pre>
+<p>We can get the same answer creating a margin of victory column for each game, which we will call <code>h_mov</code> and then take the mean of the mov column.</p>
+<pre class="r"><code>nfl %&gt;% 
+  mutate(h_mov = ptsh - ptsv) %&gt;% 
+  summarise(hfa = mean(h_mov)) %&gt;% 
+  pull(hfa)</code></pre>
+<pre><code>## [1] 2.644657</code></pre>
+<p>Over the last 13 years the average HFA is approximately 2.6 points. Has the NFL changed in the last few years? Does the HFA hold steady?</p>
+<p>One thing we can do is to look at the HFA per season and see if anything has changed over time.</p>
+<pre class="r"><code>(hfa_by_yr &lt;- nfl %&gt;% 
+  mutate(h_mov = ptsh - ptsv) %&gt;% 
+  group_by(seas) %&gt;% 
+  summarise(hfa = round(mean(h_mov),2)) %&gt;% 
+  ungroup()) %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">seas</th>
+<th align="right">hfa</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">2002</td>
+<td align="right">2.49</td>
+</tr>
+<tr class="even">
+<td align="right">2003</td>
+<td align="right">3.59</td>
+</tr>
+<tr class="odd">
+<td align="right">2004</td>
+<td align="right">2.67</td>
+</tr>
+<tr class="even">
+<td align="right">2005</td>
+<td align="right">3.45</td>
+</tr>
+<tr class="odd">
+<td align="right">2006</td>
+<td align="right">1.05</td>
+</tr>
+<tr class="even">
+<td align="right">2007</td>
+<td align="right">2.97</td>
+</tr>
+<tr class="odd">
+<td align="right">2008</td>
+<td align="right">2.42</td>
+</tr>
+<tr class="even">
+<td align="right">2009</td>
+<td align="right">2.61</td>
+</tr>
+<tr class="odd">
+<td align="right">2010</td>
+<td align="right">1.66</td>
+</tr>
+<tr class="even">
+<td align="right">2011</td>
+<td align="right">3.46</td>
+</tr>
+<tr class="odd">
+<td align="right">2012</td>
+<td align="right">2.75</td>
+</tr>
+<tr class="even">
+<td align="right">2013</td>
+<td align="right">3.20</td>
+</tr>
+<tr class="odd">
+<td align="right">2014</td>
+<td align="right">2.85</td>
+</tr>
+<tr class="even">
+<td align="right">2015</td>
+<td align="right">1.44</td>
+</tr>
+<tr class="odd">
+<td align="right">2016</td>
+<td align="right">3.06</td>
+</tr>
+</tbody>
+</table>
+<p>Sometimes it’s hard to see trends just looking at a table of numbers.</p>
+<pre class="r"><code>hfa_by_yr %&gt;% 
+  ggplot(., aes(as.factor(seas), hfa)) +
+    geom_bar(stat = &quot;identity&quot;, 
+             fill = &quot;azure3&quot;, 
+             col = &quot;white&quot;) +
+    labs(x = &quot;Season&quot;, 
+         y = &quot;Home Field Advantage&quot;) +
+    scale_x_discrete(breaks = seq(2000,2015,3)) +
+    scale_y_continuous(breaks = seq(0,4,.5)) +
+    theme_minimal()</code></pre>
+<p><img src="/post/2017-09-25-home-field-advantage-in-the-nfl_files/figure-html/unnamed-chunk-9-1.png" width="672" /></p>
+<p>The HFA looks like it jumps around quite a bit with a low of below one point in 2006 and over three and a half points in 2003. 2015 was a below average year with the HFA registering slightly below one and a half points but 2016 jumps back to the global average. A case could be made that the last five seasons have seen a decline in the value of HFA but it’s still a little too early to tell.</p>
+<p>Here’s an example of how easy it is to create “trends” by cherry picking start and end dates.</p>
+<pre class="r"><code>hfa_by_yr %&gt;% 
+  filter(seas &gt; 2010) %&gt;% 
+  ggplot(aes(seas, hfa)) +
+    geom_point() +
+    geom_smooth(method = &quot;lm&quot;, 
+                se = FALSE) +
+    theme_minimal()</code></pre>
+<p><img src="/post/2017-09-25-home-field-advantage-in-the-nfl_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+</div>
+</div>
+<div id="thats-not-home-field-advantage" class="section level3">
+<h3>That’s Not Home Field Advantage</h3>
+<p>At first glance while it might make sense to calculate home field advantage using the above method it’s not the correct way to do so. Getting to a solid HFA number isn’t as easy as we made it look above.</p>
+<p>One question we need to ask is what is home field advantage. At the most simple level it is the advantage in win probability (which we convert into points) that a team gets while playing on their home field. This might sound simplistic but it’s home field advantage because teams tend to perform better at home then on the road.</p>
+<p>Imagine an idealized game where both teams are evenly matched. The expectation is that if they were to play 1000 games on a neutral field each team would win 500 times. What happens if we take the game from the neutral field to either team’s home field? Based on past NFL performance we would expect the home team to win by roughly three points. That’s home field advantage. Since teams are rarely evenly matched it’s not as easy as saying the home team will win by three points. Ultimatley, we are concerned with HFA impact on betting therefore let’s look at how HFA effect the point spread.</p>
+<div id="an-example" class="section level4">
+<h4>An Example:</h4>
+<p>The Dolphins are playing the Saints. On a neutral field we would make the Saints a four point favorite (again meaning that if the Saints and Dolphins played 1000 times on a neutral field we’d expect the Saints on average to win by four points).</p>
+<p>Imagine two games one where the Saints are at home and the other where the Dolphins are the home team.</p>
+<p><em>home team = bottom team</em></p>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Team</th>
+<th align="right">Spread</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">Dolphins</td>
+<td align="right">+ 7</td>
+</tr>
+<tr class="even">
+<td align="right">Saints</td>
+<td align="right">- 7</td>
+</tr>
+</tbody>
+</table>
+<table>
+<thead>
+<tr class="header">
+<th align="right">Team</th>
+<th align="right">Spread</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">Saints</td>
+<td align="right">-1</td>
+</tr>
+<tr class="even">
+<td align="right">Dolphins</td>
+<td align="right">+1</td>
+</tr>
+</tbody>
+</table>
+<p>The tables above show how home field impact betting lines. The neutral field line is Saints -4. If we accept the average HFA in the NFL is approximatley 3 points then when the Saints are home they <em>should</em> win by seven points. However, when the game is played in Miami the Dolphins should perform better and the line is Saints minus one. That’s a six point swing from one location to another.</p>
+<p>Now we will see another way to calculate home field advantage and do it by team.</p>
+</div>
+</div>
+<div id="hfa-by-team" class="section level3">
+<h3>HFA by Team</h3>
+<p>Is HFA uniform across teams? Some teams play better than others at home to determine which teams have the biggest HFA we need to calculate some statistics.</p>
+<p><strong>What do we need to come up with the HFA per team?</strong></p>
+<ul>
+<li>at home margin of victory (mov)</li>
+<li>road mov</li>
+<li>league average HFA</li>
+</ul>
+<p>Unfortuantley for us the dataset we’re working with isn’t in a suitable format to calculate those numbers. This means we’re going to have to do some <a href="https://en.wikipedia.org/wiki/Data_wrangling">data wrangling</a> and <a href="http://vita.had.co.nz/papers/tidy-data.pdf">tidying</a> before we can come up with a HFA per team.</p>
+<p>Below is the code that generates HFA per team since 2002 thru 2016. It doesn’t preseason, international, or neutral site games (or at least we try not to include theme).</p>
+<p>First we create a small helper function to view the biggest and smallest home field advantage by team. Below the code and output we will go over each line and see how to both wrangle the data and calculate the HFA.</p>
+<p>Before we do that let’s to a peak at the dataset</p>
+<pre class="r"><code>nfl %&gt;% 
+  glimpse()</code></pre>
+<pre><code>## Observations: 3,968
+## Variables: 17
+## $ gid  &lt;int&gt; 519, 520, 521, 522, 523, 524, 525, 526, 527, 528, 529, 53...
+## $ seas &lt;int&gt; 2002, 2002, 2002, 2002, 2002, 2002, 2002, 2002, 2002, 200...
+## $ wk   &lt;int&gt; 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, ...
+## $ day  &lt;chr&gt; &quot;THU&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;SUN&quot;, &quot;...
+## $ v    &lt;chr&gt; &quot;SF&quot;, &quot;NYJ&quot;, &quot;BAL&quot;, &quot;MIN&quot;, &quot;SD&quot;, &quot;KC&quot;, &quot;STL&quot;, &quot;ATL&quot;, &quot;IND...
+## $ h    &lt;chr&gt; &quot;NYG&quot;, &quot;BUF&quot;, &quot;CAR&quot;, &quot;CHI&quot;, &quot;CIN&quot;, &quot;CLE&quot;, &quot;DEN&quot;, &quot;GB&quot;, &quot;J...
+## $ stad &lt;chr&gt; &quot;Giants Stadium&quot;, &quot;Ralph Wilson Stadium&quot;, &quot;Ericsson Stadi...
+## $ temp &lt;int&gt; 73, 86, 78, 85, 90, 86, 83, 83, 85, 87, 70, 90, 83, 76, N...
+## $ humd &lt;int&gt; 49, 75, 59, NA, 60, 48, 33, 64, NA, 69, 47, 57, 60, 71, N...
+## $ wspd &lt;int&gt; 7, 6, 12, 3, 7, 3, 4, 9, 16, 12, 7, 6, NA, 5, NA, 10, NA,...
+## $ wdir &lt;chr&gt; &quot;N&quot;, &quot;SW&quot;, &quot;N&quot;, &quot;NW&quot;, &quot;N&quot;, &quot;VAR&quot;, &quot;E&quot;, &quot;SW&quot;, &quot;E&quot;, &quot;E&quot;, &quot;W...
+## $ cond &lt;chr&gt; &quot;Fair&quot;, &quot;Mostly Sunny&quot;, &quot;Partly Cloudy&quot;, &quot;Partly Cloudy&quot;,...
+## $ surf &lt;chr&gt; &quot;Grass&quot;, &quot;AstroTurf&quot;, &quot;Grass&quot;, &quot;AstroPlay&quot;, &quot;Grass&quot;, &quot;Gra...
+## $ ou   &lt;dbl&gt; 38.5, 40.5, 33.5, 40.5, 37.5, 36.0, 52.0, 42.5, 43.5, 35....
+## $ sprv &lt;dbl&gt; -3.5, -3.0, -2.0, 4.5, 2.5, 2.0, -3.0, 7.0, -3.5, 8.0, 7....
+## $ ptsv &lt;int&gt; 16, 37, 7, 23, 34, 40, 16, 34, 28, 21, 17, 26, 24, 23, 10...
+## $ ptsh &lt;int&gt; 13, 31, 10, 27, 6, 39, 23, 37, 25, 49, 31, 20, 27, 31, 19...</code></pre>
+<p>Here’s our helper function to view both the top and bottom results at the same time.</p>
+<pre class="r"><code>top_and_bottom &lt;- function(.df, top = 5, bottom = 5) {
+  .df %&gt;%
+    filter(row_number() &lt;= top | row_number() &gt; (n() - bottom))
+}
+# make sure the dataframe passed to top_and_bottom is sorted</code></pre>
+<p>Now we will calculate HFA by team. The five teams with the biggest and five teams with the smallest HFA are shown in the table output below the code.</p>
+<pre class="r"><code>hfa_by_team &lt;- nfl %&gt;%
+  gather(location, team, c(h, v)) %&gt;% 
+  mutate(mov_h = ptsh - ptsv) %&gt;%
+  group_by(team, location) %&gt;%
+  summarise(mov_avg = mean(mov_h)) %&gt;%
+  ungroup() %&gt;%
+  mutate(mov_avg = ifelse(location == &quot;v&quot;, 
+                          mov_avg * -1, mov_avg)) %&gt;%
+  spread(location, mov_avg) %&gt;% 
+  mutate(mov_spread = round(h,2) - round(v,2), 
+         hfa = round(mov_spread/2,1)) %&gt;% 
+  arrange(desc(hfa)) %&gt;% 
+  select(team, hfa)
+
+top_and_bottom(hfa_by_team) %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">team</th>
+<th align="right">hfa</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">SEA</td>
+<td align="right">4.8</td>
+</tr>
+<tr class="even">
+<td align="left">BAL</td>
+<td align="right">4.3</td>
+</tr>
+<tr class="odd">
+<td align="left">ARI</td>
+<td align="right">4.2</td>
+</tr>
+<tr class="even">
+<td align="left">SF</td>
+<td align="right">4.2</td>
+</tr>
+<tr class="odd">
+<td align="left">STL</td>
+<td align="right">3.8</td>
+</tr>
+<tr class="even">
+<td align="left">MIA</td>
+<td align="right">1.3</td>
+</tr>
+<tr class="odd">
+<td align="left">CAR</td>
+<td align="right">1.2</td>
+</tr>
+<tr class="even">
+<td align="left">TB</td>
+<td align="right">1.2</td>
+</tr>
+<tr class="odd">
+<td align="left">WAS</td>
+<td align="right">1.1</td>
+</tr>
+<tr class="even">
+<td align="left">LA</td>
+<td align="right">-0.4</td>
+</tr>
+</tbody>
+</table>
+<p>Often it’s easier to get a feel for numbers by plotting them rather than looking at a table. <em>note: The plot below might seem strange to some since they’re used to seeing such data displayed in barcharts. While the barchart works for this data, IMO visually it’s overkill. Simple dots along a number line aligning with the team gets the point across (pun is on purpose) while spilling less ink.</em></p>
+<pre class="r"><code>hfa_avg &lt;- mean(hfa_by_team$hfa)
+hfa_by_team %&gt;% 
+  ggplot(., aes(reorder(team,hfa), hfa )) +
+    geom_point(col = &quot;slateblue3&quot;, size = 2, shape = 1) +
+    coord_flip() +
+    labs(x = &quot;Team&quot;, 
+         y = &quot;Home Field Advantage&quot;, 
+         title = &quot;Home Field Advantage by Team: 2002 - 2016&quot;) +
+    scale_y_continuous(breaks = seq(1,5,.5)) + 
+    geom_hline(yintercept = hfa_avg, 
+               linetype = 2, col = &quot;slategray3&quot;) +
+    annotate(&quot;text&quot;, y = 2.83, x = 4, 
+             label = &quot;League Average&quot;, size = 2.5,
+             color = &quot;gray11&quot;) +
+    theme_minimal(base_size = 8)</code></pre>
+<p><img src="/post/2017-09-25-home-field-advantage-in-the-nfl_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+<p>Like just about everything in sports betting and stats, to my knowledge there’s no exact consensus on how to calculate HFA in the NFL. There’s a few articles that I’ve checked my work against. The first is an article by <a href="http://www.footballperspective.com/guest-post-home-field-advantage-2002-2015-2016-projections/">Chase Stuart at footballperspective.com</a>. He uses the basic formula:</p>
+<pre><code>(Home point differential – Road point differential) / 2</code></pre>
+<p>For the most part my numbers match up with his. There’s also a quality article at <a href="https://www.pinnacle.com/en/betting-articles/Football/nfl-hfa-teams/A9Q2EQE9S7KWJ4AB">pinnacle.com</a> by <a href="https://twitter.com/MarkTaylor0">Mark Taylor</a>. His take is slightly different. <a href="http://grantland.com/features/bill-barnwell-best-home-field-advantages/">Bill Barnwell’s Grantland article</a> uses <code>(Home PD - Road PD) / 2</code> method.</p>
+</div>
+<div id="an-art-not-a-science" class="section level3">
+<h3>An art not a science</h3>
+<p>I don’t like using decimals because it implies precise knowledge. No one knows a team’s true HFA, especially not to the second or third decimal. That’s true for almost all stats. If you look across the articles above and around the net on HFA you’ll notice that the numbers don’t match up. No one has the same DB, some people include playoffs, some don’t. Some don’t include old stadiums, etc. There’s a lot of choices that need to be made and each one impacts these numbers. These are just estimates. Treat them as such.</p>
+</div>
+<div id="nfl-hfa-by-team-2002---2016" class="section level3">
+<h3>NFL HFA by Team 2002 - 2016</h3>
+<pre class="r"><code>nfl %&gt;%
+  gather(location, team, c(h, v)) %&gt;% 
+  mutate(mov_h = ptsh - ptsv) %&gt;%
+  group_by(team, location) %&gt;%
+  summarise(mov_avg = mean(mov_h)) %&gt;%
+  ungroup() %&gt;%
+  mutate(mov_avg = ifelse(location == &quot;v&quot;, 
+                          mov_avg * -1, mov_avg)) %&gt;%
+  spread(location, mov_avg) %&gt;% 
+  mutate(diff = round(h,2) - round(v,2), 
+         hfa = round(diff/2,1)) %&gt;% 
+  arrange(desc(hfa)) %&gt;% 
+  rename(hm_pt_diff = h, aw_pt_diff = v) %&gt;% 
+  knitr::kable(digits = 3)</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">team</th>
+<th align="right">hm_pt_diff</th>
+<th align="right">aw_pt_diff</th>
+<th align="right">diff</th>
+<th align="right">hfa</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">SEA</td>
+<td align="right">7.695</td>
+<td align="right">-1.977</td>
+<td align="right">9.67</td>
+<td align="right">4.8</td>
+</tr>
+<tr class="even">
+<td align="left">BAL</td>
+<td align="right">7.323</td>
+<td align="right">-1.258</td>
+<td align="right">8.58</td>
+<td align="right">4.3</td>
+</tr>
+<tr class="odd">
+<td align="left">ARI</td>
+<td align="right">2.008</td>
+<td align="right">-6.452</td>
+<td align="right">8.46</td>
+<td align="right">4.2</td>
+</tr>
+<tr class="even">
+<td align="left">SF</td>
+<td align="right">1.886</td>
+<td align="right">-6.537</td>
+<td align="right">8.43</td>
+<td align="right">4.2</td>
+</tr>
+<tr class="odd">
+<td align="left">STL</td>
+<td align="right">-1.205</td>
+<td align="right">-8.860</td>
+<td align="right">7.65</td>
+<td align="right">3.8</td>
+</tr>
+<tr class="even">
+<td align="left">GB</td>
+<td align="right">8.069</td>
+<td align="right">0.832</td>
+<td align="right">7.24</td>
+<td align="right">3.6</td>
+</tr>
+<tr class="odd">
+<td align="left">BUF</td>
+<td align="right">1.667</td>
+<td align="right">-5.269</td>
+<td align="right">6.94</td>
+<td align="right">3.5</td>
+</tr>
+<tr class="even">
+<td align="left">DET</td>
+<td align="right">-0.925</td>
+<td align="right">-7.843</td>
+<td align="right">6.92</td>
+<td align="right">3.5</td>
+</tr>
+<tr class="odd">
+<td align="left">MIN</td>
+<td align="right">3.623</td>
+<td align="right">-3.363</td>
+<td align="right">6.98</td>
+<td align="right">3.5</td>
+</tr>
+<tr class="even">
+<td align="left">NYJ</td>
+<td align="right">2.240</td>
+<td align="right">-3.946</td>
+<td align="right">6.19</td>
+<td align="right">3.1</td>
+</tr>
+<tr class="odd">
+<td align="left">HOU</td>
+<td align="right">0.782</td>
+<td align="right">-5.122</td>
+<td align="right">5.90</td>
+<td align="right">3.0</td>
+</tr>
+<tr class="even">
+<td align="left">IND</td>
+<td align="right">6.084</td>
+<td align="right">0.535</td>
+<td align="right">5.55</td>
+<td align="right">2.8</td>
+</tr>
+<tr class="odd">
+<td align="left">JAC</td>
+<td align="right">-0.310</td>
+<td align="right">-5.992</td>
+<td align="right">5.68</td>
+<td align="right">2.8</td>
+</tr>
+<tr class="even">
+<td align="left">CHI</td>
+<td align="right">1.608</td>
+<td align="right">-3.678</td>
+<td align="right">5.29</td>
+<td align="right">2.6</td>
+</tr>
+<tr class="odd">
+<td align="left">KC</td>
+<td align="right">2.672</td>
+<td align="right">-2.573</td>
+<td align="right">5.24</td>
+<td align="right">2.6</td>
+</tr>
+<tr class="even">
+<td align="left">PIT</td>
+<td align="right">7.100</td>
+<td align="right">1.797</td>
+<td align="right">5.30</td>
+<td align="right">2.6</td>
+</tr>
+<tr class="odd">
+<td align="left">DEN</td>
+<td align="right">4.589</td>
+<td align="right">-0.451</td>
+<td align="right">5.04</td>
+<td align="right">2.5</td>
+</tr>
+<tr class="even">
+<td align="left">SD</td>
+<td align="right">5.400</td>
+<td align="right">0.424</td>
+<td align="right">4.98</td>
+<td align="right">2.5</td>
+</tr>
+<tr class="odd">
+<td align="left">ATL</td>
+<td align="right">3.184</td>
+<td align="right">-1.669</td>
+<td align="right">4.85</td>
+<td align="right">2.4</td>
+</tr>
+<tr class="even">
+<td align="left">NO</td>
+<td align="right">4.347</td>
+<td align="right">-0.320</td>
+<td align="right">4.67</td>
+<td align="right">2.3</td>
+</tr>
+<tr class="odd">
+<td align="left">DAL</td>
+<td align="right">2.879</td>
+<td align="right">-1.472</td>
+<td align="right">4.35</td>
+<td align="right">2.2</td>
+</tr>
+<tr class="even">
+<td align="left">NE</td>
+<td align="right">11.144</td>
+<td align="right">6.919</td>
+<td align="right">4.22</td>
+<td align="right">2.1</td>
+</tr>
+<tr class="odd">
+<td align="left">TEN</td>
+<td align="right">-0.098</td>
+<td align="right">-4.016</td>
+<td align="right">3.92</td>
+<td align="right">2.0</td>
+</tr>
+<tr class="even">
+<td align="left">CLE</td>
+<td align="right">-3.408</td>
+<td align="right">-7.116</td>
+<td align="right">3.71</td>
+<td align="right">1.9</td>
+</tr>
+<tr class="odd">
+<td align="left">OAK</td>
+<td align="right">-3.504</td>
+<td align="right">-6.769</td>
+<td align="right">3.27</td>
+<td align="right">1.6</td>
+</tr>
+<tr class="even">
+<td align="left">PHI</td>
+<td align="right">4.473</td>
+<td align="right">1.192</td>
+<td align="right">3.28</td>
+<td align="right">1.6</td>
+</tr>
+<tr class="odd">
+<td align="left">CIN</td>
+<td align="right">1.439</td>
+<td align="right">-1.618</td>
+<td align="right">3.06</td>
+<td align="right">1.5</td>
+</tr>
+<tr class="even">
+<td align="left">NYG</td>
+<td align="right">1.780</td>
+<td align="right">-1.032</td>
+<td align="right">2.81</td>
+<td align="right">1.4</td>
+</tr>
+<tr class="odd">
+<td align="left">MIA</td>
+<td align="right">-0.342</td>
+<td align="right">-2.916</td>
+<td align="right">2.58</td>
+<td align="right">1.3</td>
+</tr>
+<tr class="even">
+<td align="left">CAR</td>
+<td align="right">1.810</td>
+<td align="right">-0.532</td>
+<td align="right">2.34</td>
+<td align="right">1.2</td>
+</tr>
+<tr class="odd">
+<td align="left">TB</td>
+<td align="right">-0.570</td>
+<td align="right">-3.058</td>
+<td align="right">2.49</td>
+<td align="right">1.2</td>
+</tr>
+<tr class="even">
+<td align="left">WAS</td>
+<td align="right">-1.574</td>
+<td align="right">-3.711</td>
+<td align="right">2.14</td>
+<td align="right">1.1</td>
+</tr>
+<tr class="odd">
+<td align="left">LA</td>
+<td align="right">-11.286</td>
+<td align="right">-10.500</td>
+<td align="right">-0.79</td>
+<td align="right">-0.4</td>
+</tr>
+</tbody>
+</table>
+</div>

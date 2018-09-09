@@ -1,0 +1,247 @@
+---
+title: Creating an NFL point spread dataset
+author: Cory Waters
+date: '2017-08-20'
+slug: creating-an-nfl-point-spread-dataset
+categories:
+  - R
+  - betting
+tags:
+  - data
+---
+
+
+
+<pre class="r"><code>library(tidyverse)
+library(lubridate)</code></pre>
+<div id="repole-data" class="section level2">
+<h2>Repole Data</h2>
+<p>There’s a few R packages for sports data. Non, to my knowledge, focus on NFL football. More importantly, none are contain point spread and total data.</p>
+<p>The first question we need to solve is where are we going to get the data. There’s a few options.</p>
+<p>We can buy the data. <a href="http://armchairanalysis.com">Armchair Analysis</a> is well worth the price. It goes far beyond scores and spreads. But it’s overkill for our needs. <a href="http://www.gamblingdbs.com">GamblingDB’s</a> and <a href="http://www.kostats.com">kostats</a> have what we’re looking. But for our needs the data at <a href="http://www.repole.com/sun4cast/data.html" class="uri">http://www.repole.com/sun4cast/data.html</a> will do. The data goes to 2013 (I’m not 100% sure but it looks like the owner of the site, Warren Repole, died before the 2014 season ended). There’s score and odds data from 1978 to 2013 and the game stats data from 2000 to 2013.</p>
+<p>For most people it’s easier to download the archived files and manually unzip rather than doing it in R. But, speaking from experience, this is a bad idea. Ideally, you want every step along the process to be reproducible. Manually downloading and saving to a directory might seem easier now but there’s a long list of issues that come up when you do it that way. Most probable, you’ll forget the directory where you saved the files or delete it.</p>
+<p>First, find the link for the NFL lines data.</p>
+<pre class="r"><code>nfl_url &lt;- &#39;http://www.repole.com/sun4cast/stats/nfllines.zip&#39;</code></pre>
+<p>Next, we’re going to download the files, unzip them into a temporary directory. Then we’re going to get the file paths of the csv files.</p>
+<pre class="r"><code>tmp_dir &lt;- tempdir()
+tmp_file &lt;- tempfile(tmpdir = tmp_dir, fileext = &quot;.zip&quot;)
+download.file(nfl_url, tmp_file)
+f_names &lt;- unzip(tmp_file, list = TRUE)
+files &lt;- unzip(tmp_file, 
+               files = f_names$Name, 
+               exdir = tmp_dir, 
+               overwrite = TRUE)
+files &lt;- files[grepl(x = files, pattern = &#39;.csv&#39;)]
+
+# We can clean up by getting rid of some of the temp files
+rm(nfl_url, tmp_dir,f_names,tmp_file)</code></pre>
+<p>Now we have a bunch of csv files (one for each season). The plan is to pass each csv file to the <code>read_csv</code> function in the <code>readr</code> package, which loads with the <code>tidyverse</code> package.</p>
+<div id="read-the-csv-files" class="section level3">
+<h3>Read the csv files</h3>
+<p>Now that we have the names of all the files we need to read them into R. Doing this one at a time by hand will be time consuming and error prone. Luckily, the <code>map</code> function applies a function to each element in a vector or list. This means we can pass the list of file names to the <code>read_csv</code> function.</p>
+<p>Because the files should follow the same format (this is a big assumption that can get you in a lot of trouble but we’ll stick with it for now) the column names should be the same and we can join them together to create one master file.</p>
+<p>The last part of the chain is to fix the column names of the original csv’s into something more R friendly. For me that means no spaces and no periods. This isn’t a rule but it makes it easier to work with.</p>
+<pre class="r"><code># because of some issue with the data you need to set the `Total Line` column to the correct data type when reading it in.
+nfl_games &lt;-
+  map(files,
+    ~ read_csv(.x,
+      col_types = cols(`Total Line` = col_double()))) %&gt;%
+  bind_rows() %&gt;% 
+  set_names(c(&#39;Date&#39;, &#39;Away&#39;, &#39;AwayScr&#39;,
+              &#39;Home&#39;, &#39;HomeScr&#39;, &#39;Line&#39;, 
+              &#39;Totalline&#39;))
+
+glimpse(nfl_games)</code></pre>
+<pre><code>## Observations: 8,430
+## Variables: 7
+## $ Date      &lt;chr&gt; &quot;09/08/2005&quot;, &quot;09/11/2005&quot;, &quot;09/11/2005&quot;, &quot;09/11/200...
+## $ Away      &lt;chr&gt; &quot;Oakland Raiders&quot;, &quot;Denver Broncos&quot;, &quot;Cincinnati Ben...
+## $ AwayScr   &lt;int&gt; 20, 10, 27, 7, 7, 7, 23, 24, 14, 7, 19, 25, 3, 28, 2...
+## $ Home      &lt;chr&gt; &quot;New England Patriots&quot;, &quot;Miami Dolphins&quot;, &quot;Cleveland...
+## $ HomeScr   &lt;int&gt; 30, 34, 13, 22, 34, 9, 20, 13, 26, 27, 42, 28, 17, 2...
+## $ Line      &lt;dbl&gt; 7.5, -4.5, -3.5, 4.5, 7.0, 6.0, 6.5, 6.0, 3.0, 3.0, ...
+## $ Totalline &lt;dbl&gt; 50.0, 38.5, 44.5, 39.0, 40.5, 33.0, 45.5, 43.5, 40.0...</code></pre>
+<pre class="r"><code># del the temp csv files
+rm(files)</code></pre>
+</div>
+<div id="set-the-dates" class="section level3">
+<h3>Set the dates</h3>
+<p>The <code>Date</code> column is as a character column. Use the <code>mdy</code> function from the <code>lubridate</code> package to convert the dates into datetime format. (We use <code>mdy</code> because the dates are in month/day/year format, if the dates were in year/month/day format but character strings we would use the <code>ymd</code> function instead.)</p>
+<pre class="r"><code>nfl_games$Date &lt;- mdy(nfl_games$Date)</code></pre>
+<p>Let’s add a season column for easy filtering by year later. The NFL has a split year schedule (let’s pretend that this dataset is more than the regular season for the time being). Usually the regular season is year <code>n</code> and the playoffs played in year <code>n + 1</code>. Because of this it’s not possible to blindly extract the year from the date column for the season. We need to tell R that if the month is below a certain cutoff the season still belongs to the previous year.</p>
+<pre class="r"><code>nfl_games &lt;- nfl_games %&gt;% 
+                    mutate(Seas = ifelse(month(Date) &lt; 7,
+                                         year(Date) - 1, year(Date)))</code></pre>
+</div>
+<div id="youre-done-kinda" class="section level3">
+<h3>You’re done… kinda</h3>
+<p>You can export your dataset for reuse later. Export the <code>nfl_games</code> dataframe to csv or one of R’s other formats for later use.</p>
+<pre class="r"><code># nfl_games %&gt;%
+#   write_rds(&#39;nfl_lines.rds&#39;)
+
+
+# look at a random sampling of the games in the dataset.
+nfl_games %&gt;% 
+  sample_n(10) %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Date</th>
+<th align="left">Away</th>
+<th align="right">AwayScr</th>
+<th align="left">Home</th>
+<th align="right">HomeScr</th>
+<th align="right">Line</th>
+<th align="right">Totalline</th>
+<th align="right">Seas</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">2007-10-21</td>
+<td align="left">San Francisco 49ers</td>
+<td align="right">15</td>
+<td align="left">New York Giants</td>
+<td align="right">33</td>
+<td align="right">9.5</td>
+<td align="right">39.0</td>
+<td align="right">2007</td>
+</tr>
+<tr class="even">
+<td align="left">2009-10-04</td>
+<td align="left">Tennessee Titans</td>
+<td align="right">17</td>
+<td align="left">Jacksonville Jaguars</td>
+<td align="right">37</td>
+<td align="right">-3.5</td>
+<td align="right">42.0</td>
+<td align="right">2009</td>
+</tr>
+<tr class="odd">
+<td align="left">1979-11-11</td>
+<td align="left">Buffalo Bills</td>
+<td align="right">14</td>
+<td align="left">New York Jets</td>
+<td align="right">12</td>
+<td align="right">6.0</td>
+<td align="right">42.0</td>
+<td align="right">1979</td>
+</tr>
+<tr class="even">
+<td align="left">1988-11-21</td>
+<td align="left">Washington Redskins</td>
+<td align="right">21</td>
+<td align="left">San Francisco 49ers</td>
+<td align="right">37</td>
+<td align="right">3.5</td>
+<td align="right">43.0</td>
+<td align="right">1988</td>
+</tr>
+<tr class="odd">
+<td align="left">1985-12-15</td>
+<td align="left">San Francisco 49ers</td>
+<td align="right">31</td>
+<td align="left">New Orleans Saints</td>
+<td align="right">19</td>
+<td align="right">-10.0</td>
+<td align="right">43.0</td>
+<td align="right">1985</td>
+</tr>
+<tr class="even">
+<td align="left">1986-11-09</td>
+<td align="left">Los Angeles Rams</td>
+<td align="right">0</td>
+<td align="left">New Orleans Saints</td>
+<td align="right">6</td>
+<td align="right">-2.5</td>
+<td align="right">36.5</td>
+<td align="right">1986</td>
+</tr>
+<tr class="odd">
+<td align="left">2013-12-08</td>
+<td align="left">Oakland Raiders</td>
+<td align="right">27</td>
+<td align="left">New York Jets</td>
+<td align="right">37</td>
+<td align="right">3.0</td>
+<td align="right">39.5</td>
+<td align="right">2013</td>
+</tr>
+<tr class="even">
+<td align="left">2005-11-28</td>
+<td align="left">Pittsburgh Steelers</td>
+<td align="right">7</td>
+<td align="left">Indianapolis Colts</td>
+<td align="right">26</td>
+<td align="right">8.0</td>
+<td align="right">47.0</td>
+<td align="right">2005</td>
+</tr>
+<tr class="odd">
+<td align="left">1982-12-12</td>
+<td align="left">Miami Dolphins</td>
+<td align="right">0</td>
+<td align="left">New England Patriots</td>
+<td align="right">3</td>
+<td align="right">-6.0</td>
+<td align="right">37.0</td>
+<td align="right">1982</td>
+</tr>
+<tr class="even">
+<td align="left">2003-12-14</td>
+<td align="left">Detroit Lions</td>
+<td align="right">17</td>
+<td align="left">Kansas City Chiefs</td>
+<td align="right">45</td>
+<td align="right">14.5</td>
+<td align="right">45.0</td>
+<td align="right">2003</td>
+</tr>
+</tbody>
+</table>
+<p>Chances are you prefer a dataset with stats for each game along with the spreads and totals. For that we need to tackle the <code>nflstats</code> data. There’s still plenty we can do with the limited data set.</p>
+<p>For example, we can look at how the game total for NFL matches has shifted over the last couple of decades.</p>
+<pre class="r"><code>theme_set(theme_minimal())
+nfl_games %&gt;%
+  filter(!is.na(Totalline)) %&gt;% # remove the season with NA for totals
+  ggplot(aes(factor(Seas), Totalline)) +
+  geom_boxplot() +
+  labs(x = &#39;Season&#39;, y = &#39;Game Total&#39;) +
+  theme(axis.text.x  = element_text(
+        angle = 90,
+        vjust = 0.5,
+        size = 08)
+        )</code></pre>
+<p><img src="/post/2017-08-20-creating-an-nfl-point-spread-dataset_files/figure-html/unnamed-chunk-6-1.png" width="672" /></p>
+<pre class="r"><code>nfl_games %&gt;% 
+  filter(!is.na(Totalline)) %&gt;% 
+  ggplot(aes(x = factor(Seas), y = Totalline)) +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult=1),geom = &#39;ribbon&#39;, group = 1,
+               alpha = .4) +
+  stat_summary(fun.y = &quot;mean&quot;, geom = &quot;line&quot;, group = 1) +
+  labs(x = &#39;Season&#39;, y = &#39;Game Total&#39;) +
+  theme(axis.text.x  = element_text(
+        angle = 90,
+        vjust = 0.5,
+        size = 08)
+        )</code></pre>
+<p><img src="/post/2017-08-20-creating-an-nfl-point-spread-dataset_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>Or, you can look plot margin of victory as a function of the game line to get an idea how close the point spread is on average to the final score.</p>
+<pre class="r"><code>nfl_games %&gt;%
+  mutate(mov = HomeScr - AwayScr) %&gt;% 
+  ggplot(aes(Line, mov)) +
+  geom_jitter(alpha = 0.1) +
+  geom_smooth(method = &#39;lm&#39;, se = FALSE) +
+  labs(x = &quot;Point Spread&quot;, y = &#39;Margin of Victory&#39;)</code></pre>
+<p><img src="/post/2017-08-20-creating-an-nfl-point-spread-dataset_files/figure-html/unnamed-chunk-8-1.png" width="672" /></p>
+</div>
+<div id="on-the-next-episode" class="section level3">
+<h3>On the next episode…</h3>
+<p>Next, we’ll create a dataset out of the repole stat data which turns out to be more difficult than expected.</p>
+</div>
+</div>
+<div id="update" class="section level2">
+<h2>Update:</h2>
+<p>In the past I’ve seen it said that the repole data wasn’t reliable. Since I use other sources I never checked it out for myself. But after this post it became clear to me that those people were right. This dataset is missing games from seasons. The stats datasets has the wrong dates and that doesn’t make me too confident in the rest of the data. Maybe down the road I’ll put something up on fixing dirty unreliable data but that time isn’t now. I’ve found another free source that I’ll write about next time.</p>
+</div>

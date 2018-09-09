@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Text on Questioning Certainty</title>
+    <link>/tags/text/</link>
+    <description>Recent content in Text on Questioning Certainty</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Wed, 08 Nov 2017 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/text/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Working with semi-unstructred text in R</title>
+      <link>/2017/11/08/working-with-semi-unstructred-text-in-r/</link>
+      <pubDate>Wed, 08 Nov 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/11/08/working-with-semi-unstructred-text-in-r/</guid>
+      <description>Motivation Toying with an classification problem, that uses the uses the Federalist Papers, I became more interested in converting unstructured text into a format for analysis than the actual model. The goal was to train the classifier on known author and use that model to predict the author of the dozen or so essays where authorship is unknown (or at least debatable).
+I didn’t have the original data set. Let’s see how trivial it is to create the document.</description>
+    </item>
+    
+  </channel>
+</rss>

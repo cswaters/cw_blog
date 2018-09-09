@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.48" />
+
+
+<title>Bad Bet: Do sports handicappers win? Part 2 - Questioning Certainty</title>
+<meta property="og:title" content="Bad Bet: Do sports handicappers win? Part 2 - Questioning Certainty">
+
+
+
+  
+  <meta property="description" content="Follow up to last post with a variable bet size model">
+  
+
+
+
+
+
+
+
+
+<link href='//cdn.bootcss.com/highlight.js/9.11.0/styles/tomorrow.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.jpeg"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/about/">About</a></li>
+    
+    <li><a href="/post/">Blog</a></li>
+    
+    <li><a href="https://github.com/cswaters">GitHub</a></li>
+    
+    <li><a href="/links/">Links</a></li>
+    
+    <li><a href="https://twitter.com/cory_waters">Twitter</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">3 min read</span>
+    
+
+    <h1 class="article-title">Bad Bet: Do sports handicappers win? Part 2</h1>
+
+    
+    <span class="article-date">2017/05/12</span>
+    
+
+    <div class="article-content">
+      <p>So far we’ve been using a flat betting model where our bettors bet size never varies. While this might be easier to model it isn’t very realistic. We could go with something like the <a href="https://en.wikipedia.org/wiki/Kelly_criterion">Kelly criterion</a> to determine the bet size but we’ll opt for easy again and use “x” percentage of the bettor’s bankroll. This means instead of using an infinite bankroll where a player can never run out of money we will start with a fixed sum. The bankroll size will determine the bet amount</p>
+<pre class="r"><code>bettor_bankroll_sim &lt;- function(bets=500, bet_size_p=0.05, bank_roll=1000, winPct=.5) {
+  results &lt;- rep(0, bets)
+  for (i in 1:length(results)) {
+    bet &lt;- bet_size_p * bank_roll
+    bet &lt;- sample(c(bet, (bet+(bet*.1))*-1),1, prob = c(winPct, (1-winPct)))
+    bank_roll &lt;- sum(bank_roll, bet)
+    results[i] &lt;- bank_roll
+  }
+  results
+}
+
+bettor_bankroll_sim(500, .05, 1000) %&gt;% head()</code></pre>
+<pre><code>## [1] 945.0000 992.2500 937.6762 984.5601 930.4093 976.9297</code></pre>
+<pre class="r"><code>df &lt;- bind_cols(as_data_frame(replicate(500, bettor_bankroll_sim())))
+names(df) &lt;- map_chr(1:500, function(.x) {
+  paste0(&quot;bettor_&quot;, .x)
+})
+sum(tail(df, 1) &gt; 1000)</code></pre>
+<pre><code>## [1] 24</code></pre>
+<p>The last bit of code gets the number of bettors that, after 500 bets, have a higher bank roll than they started with. That’s out of 500 bettors, hitting 50% winners. Let’s look at how 55% winners do.</p>
+<pre class="r"><code>df &lt;-
+  bind_cols(as_data_frame(replicate(500, bettor_bankroll_sim(winPct = .55))))
+names(df) &lt;- map_chr(1:500, function(.x) {
+  paste0(&quot;bettor_&quot;, .x)
+})
+sum(tail(df, 1) &gt; 1000)</code></pre>
+<pre><code>## [1] 353</code></pre>
+<p>Let’s take a look at the average balance of a 55% winner after 500 bets and a bet size equal to 5% of the bettor’s bankroll.</p>
+<pre class="r"><code>df %&gt;% 
+  tail(1) %&gt;% 
+  rowMeans()</code></pre>
+<pre><code>## [1] 4098.716</code></pre>
+<p>Now let’s plot it.</p>
+<pre class="r"><code>df %&gt;% 
+  tail(1) %&gt;% 
+  gather(bettor, balance, 1:500) %&gt;% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = &quot;azure3&quot;, col=&quot;white&quot;, binwidth = 1500) +
+    scale_x_continuous(labels = scales::dollar) +
+    theme_minimal()</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-2_files/figure-html/bettor_55_dist-1.png" width="672" /></p>
+<p>Plotting the final balance of each bettor gives a striking visual of how profitable being a 55% winner can be. This is only after 500 bets starting with $1,000. Let’s do something silly and see what it looks like when we start hitting 60% and we will bump the number of bets up to 1,000.</p>
+<pre class="r"><code>df &lt;-
+  bind_cols(as_data_frame(replicate(
+    500, bettor_bankroll_sim(bets = 1000, winPct = .60)
+  )))
+
+df %&gt;% 
+  tail(1) %&gt;% 
+  gather(bettor, balance, 1:500) %&gt;% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = &quot;azure3&quot;, col=&quot;white&quot;) +
+    scale_x_continuous(labels = scales::dollar) +
+    theme_minimal()</code></pre>
+<pre><code>## `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-2_files/figure-html/bettor_60pct-1.png" width="672" /></p>
+<p>You’re not seeing that wrong. The plot shows the majority of bars between $0 and $20 million dollars. We purposely didn’t set the binwidth in order not to spoil the surprise. Since that’s such an extreme spread let’s look at the how the average bettor did after 1,000 bets.</p>
+<pre class="r"><code>df %&gt;% 
+  tail(1) %&gt;% 
+  rowMeans()</code></pre>
+<pre><code>## [1] 2714831</code></pre>
+<p>The mean is approx 2.7 million dollars. Take that in… On average if you hit 60% of your bets, betting into -110 lines, while betting 5% of your bankroll after starting with $1,000, you will end up 2.7 million dollars richer after 1,000 bets.</p>
+<p>How does the best and worst bettors’ fare?</p>
+<pre class="r"><code>df %&gt;% 
+  tail(1) %&gt;% 
+  t() %&gt;% 
+  summary()</code></pre>
+<pre><code>##        V1          
+##  Min.   :    3213  
+##  1st Qu.:  268366  
+##  Median :  855186  
+##  Mean   : 2714831  
+##  3rd Qu.: 2520777  
+##  Max.   :64286155</code></pre>
+<p>The bettor with the worst ‘luck’ ends up 12x his starting balance while the bettor with the best outcome is sitting on roughly 64 million dollars.</p>
+
+    </div>
+  </article>
+
+  
+<section id="comments">
+  <div id="disqus_thread"></div>
+  <script>
+  var disqus_config = function () {
+  
+  };
+  (function() {
+    var inIFrame = function() {
+      var iframe = true;
+      try { iframe = window.self !== window.top; } catch (e) {}
+      return iframe;
+    };
+    if (inIFrame()) return;
+    var d = document, s = d.createElement('script');
+    s.src = '//corywaters.disqus.com/embed.js'; s.async = true;
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/highlight.min.js"></script>
+
+
+
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/r.min.js"></script>
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-107296047-1', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+  </body>
+</html>
+

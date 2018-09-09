@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.48" />
+
+
+<title>Bad Bet: Do sports handicappers win? Part 1 - Questioning Certainty</title>
+<meta property="og:title" content="Bad Bet: Do sports handicappers win? Part 1 - Questioning Certainty">
+
+
+
+  
+  <meta property="description" content="How often do touts hit greater than 50%?">
+  
+
+
+
+
+
+
+
+
+<link href='//cdn.bootcss.com/highlight.js/9.11.0/styles/tomorrow.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.jpeg"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/about/">About</a></li>
+    
+    <li><a href="/post/">Blog</a></li>
+    
+    <li><a href="https://github.com/cswaters">GitHub</a></li>
+    
+    <li><a href="/links/">Links</a></li>
+    
+    <li><a href="https://twitter.com/cory_waters">Twitter</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">9 min read</span>
+    
+
+    <h1 class="article-title">Bad Bet: Do sports handicappers win? Part 1</h1>
+
+    
+    <span class="article-date">2017/05/12</span>
+    
+
+    <div class="article-content">
+      <p><em>Most of this was written a while back, I wouldn’t code some of the simulations the same way now, but everything still works so it’s being left as is.</em></p>
+<p>The packages needed for examples below.</p>
+<pre class="r"><code>library(gridExtra)
+library(tidyverse)
+theme_set(theme_minimal())</code></pre>
+<div id="selling-flap-doddle" class="section level1">
+<h1>Selling Flap-Doddle</h1>
+<p><strong>Handicappers that sell their picks to the general public don’t win and are a bad bet for gamblers.</strong></p>
+<p><em>note: the only long term documented exception to this rule I know of is <a href="http://www.handicapper.net">RAS</a> but as they say “one point does not a trend make.”</em></p>
+<p>It’s unfortunate that this even needs to be said. All of the common sense arguments against touts seem totally logical to me. Why if someone could win often enough to be a profitable bettor would he sell picks? If you find a pot of gold at the end of the rainbow do you call everyone over to share in your new fortunes? Maybe you do– but professional gamblers’ wouldn’t. For the same reason the you can’t find a book that will teach you how to become a winning bettor you won’t find real professionals selling their winning picks. Once the information becomes public it loses its value.</p>
+<p>But I’m not here to try and convince you with words why touts are long term losers, we will run some simulations to see how common it is for a coin-flipper to win and extactly how long until the law of large numbers catches up with him.</p>
+<div id="simulating-bettors" class="section level3">
+<h3>Simulating Bettors</h3>
+<p>For the experiment we will create a number of bettors and watch their performance over a set number of bets.</p>
+<p>To start off we will make some assumptions:</p>
+<ol style="list-style-type: decimal">
+<li>All bets are -110.</li>
+<li>Each bettor has a 50/50 chance of winning any given bet.</li>
+<li>Each bettor has an infinite bankroll</li>
+</ol>
+<p>The <code>sample</code> function in R makes it easy to run the simulations. First we will define the parameters, i.e. the number of bettors, number of bets, win/loss amount.</p>
+<p>Next, the bet simulation is accomplished by repeatedly sampling from the vector <code>c(win, loss)</code>. The likelihood of either being selected is the same by default. All of the simulations are put inside a matrix and arranged by bettor.</p>
+<p>If there’s 100 bettors and they place 100 bets that’s 10,000 simulated bets. Since the number of samples to be taken is bigger than the sample pool (win/lose) the setting <code>replace =</code> must be set to <code>TRUE</code>. All of the sims are put into a matrix and the the shape of the matrix is the number of bets by the number of bettors. We stick that matrix inside a dataframe.</p>
+<pre class="r"><code>bets &lt;- 100
+bettors &lt;- 100
+win &lt;- 100
+loss &lt;- -110
+
+df &lt;-
+  as_data_frame(
+    matrix(
+      sample(c(win, loss),
+             bettors * bets,
+             replace = TRUE),
+      nrow = bets))</code></pre>
+</div>
+<div id="summing-up-the-bets" class="section level3">
+<h3>Summing up the bets</h3>
+<p>To keep a running total of the bets across time we will use the <code>mutate_all()</code> function. Then we will add a <code>bet_number</code> column by using the <code>1:n()</code> function. Finally, use the <code>gather()</code> function to manipulate the data into a <a href="http://vita.had.co.nz/papers/tidy-data.pdf">tidy format</a></p>
+<pre class="r"><code>df &lt;- df %&gt;% 
+  mutate_all(funs(cumsum)) %&gt;% 
+  mutate(bet_number = 1:n()) %&gt;% 
+  gather(bettor, balance, -bet_number)</code></pre>
+</div>
+<div id="graphing-the-results" class="section level3">
+<h3>Graphing the Results</h3>
+<p>Set the bet number as the x-axis and the balance as the y-axis. This layout tracks how the each bettor performs over the number of bets.</p>
+<pre class="r"><code>ggplot(df, aes(x = bet_number, y = balance)) +
+  geom_line(alpha = .55) +
+  labs(x = &quot;Bet Number&quot;, y = &quot;Balance ($)&quot;) +
+  scale_y_continuous(labels = scales::dollar)</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-1_files/figure-html/bettor_performance-1.png" width="672" /></p>
+</div>
+<div id="everyone-gets-lucky-sometime" class="section level3">
+<h3>Everyone Get’s Lucky Sometime</h3>
+<p>The x-axis is the bet number. For an example “25” is the 25th bet in the sequence. We’re interested in the far right of the graph that represents the amount of money the bettor ends up with after the sequence of bets. While each line represents a unique bettor our focus is the overall distribution (the average is the slightly darker line in the middle of the wave like shape).</p>
+<p>After 100 bets quite a few bettors end their sequence up money. Remember that these bettors are coin-flippers and are just as likely to win as lose. However, since the bettors lose more money than they win (-110 vs +100) it’s more likely that a bettor will end up negative. We can figure out how often we need to win to breakeven with some simple math.</p>
+<pre><code>110/(100 + 110) = .5238</code></pre>
+<p>In order to just breakeven after a sequnce of n bets we need to win 52.4% of our bets betting into -110 lines. The line between winning and losing is razor thin. The question then becomes how long until your luck runs out. Since we’re going to changing parameters like number of bets, win and loss percentage and number of bettors we’re going to turn our code into a reusable function.</p>
+<pre class="r"><code>bettor_sim &lt;-
+  function(bets = 100, bettors = 100,
+           win = 100, loss = -110, winPct = .5) {
+  df &lt;- as_data_frame(
+    matrix(
+      sample(c(win, loss),
+             bettors * bets,
+             replace = TRUE,
+             prob = c(winPct, (1 - winPct))
+             ),
+      nrow = bets))
+  
+  df %&gt;% 
+    mutate_all(funs(cumsum)) %&gt;%
+    mutate(bet_number = 1:n()) %&gt;%
+    gather(bettor, balance, -bet_number) %&gt;%
+    ggplot(aes(x = bet_number, y = balance)) +
+    geom_line(alpha = .35) +
+    scale_y_continuous(labels = scales::dollar) +
+    labs(x = &quot;Bet Number&quot;, y = &quot;Balance ($)&quot;)
+  }</code></pre>
+<pre class="r"><code>bettor_sim(bets = 5000)</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-1_files/figure-html/bettor_sim_output-1.png" width="672" /></p>
+<p>The last row of the dataframe is the ending balance so it is possible to look at a distribution of the bettor results. We will have to alter the function a little to return the actual data instead of a plot.</p>
+<pre class="r"><code>bettor_sim_data &lt;-
+  function(bets = 100, bettors = 100,
+           win = 100, loss = -110, winPct = .5) {
+  df &lt;- as_data_frame(
+    matrix(
+      sample(c(win, loss),
+             bettors * bets,
+             replace = TRUE,
+             prob = c(winPct, (1 - winPct))
+             ),
+      nrow = bets)) %&gt;%
+    mutate_all(funs(cumsum)) %&gt;%
+    mutate(bet_number = 1:n()) %&gt;%
+    gather(bettor, balance, -bet_number)
+  
+  df
+  }
+
+bettor_sim_data(bets = 100, bettors = 500) %&gt;%
+  filter(bet_number == 100) %&gt;% 
+  ggplot(., aes(balance)) +
+  geom_histogram(fill = &quot;bisque&quot;, color = &quot;white&quot;,binwidth = 500) +
+  scale_x_continuous(labels = scales::dollar)</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-1_files/figure-html/bettor_sim_dist-1.png" width="672" /></p>
+</div>
+<div id="still-a-loser" class="section level3">
+<h3>Still a loser</h3>
+<p>The mean is slightly below zero after 100 bets meaning that most bettors broke even in their bets but the cost of juice brought them into the red. There’s still quite a few bettors in the positive, some as high as $2,000. At 100 a bet 2k is 20 units. Quite a score. When the number of bets increases the number of bettors to the right of zero starts to decrease.</p>
+<p>First let’s increase the number of bets from 100 to 500, then to 2500, and finally 5000. (while 5000 bets sounds like a lot, if you placed 3 bets a day on average for 350 of the 365 days in a year you would hit five thousand in less than five years. In reality you will hit this number much sooner).</p>
+<pre class="r"><code># Plot 1: 500 bettors 100 bets
+p1 &lt;- bettor_sim_data(bets = 100, bettors = 500) %&gt;%
+  filter(bet_number == 100) %&gt;% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = &quot;bisque&quot;, color = &quot;white&quot;,binwidth = 500) +
+    geom_vline(aes(xintercept=0), col =&quot;black&quot;) +
+    scale_x_continuous(labels = scales::dollar) +
+    labs(title = &quot;Bets: 100&quot;)
+
+# Plot 2: 500 bettors 500 bets - remember to change bet_number in filter
+p2 &lt;- bettor_sim_data(bets = 500, bettors = 500) %&gt;%
+  filter(bet_number == 500) %&gt;% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = &quot;chartreuse3&quot;, color = &quot;white&quot;,binwidth = 2000) +
+    geom_vline(aes(xintercept=0), col =&quot;black&quot;) +
+    scale_x_continuous(labels = scales::dollar) +
+    labs(title = &quot;Bets: 500&quot;) 
+
+
+# Plot 3: 500 bettors 2500 bets - remember to change bet_number in filter
+p3 &lt;- bettor_sim_data(bets = 2500, bettors = 500) %&gt;%
+  filter(bet_number == 2500) %&gt;% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = &quot;cyan2&quot;, color = &quot;white&quot;,binwidth = 2500) +
+    geom_vline(aes(xintercept=0), col =&quot;black&quot;) +
+    scale_x_continuous(labels = scales::dollar) +
+    labs(title = &quot;Bets: 2500&quot;) 
+
+# Plot 4: 500 bettors 5000 bets - remember to change bet_number in filter
+p4 &lt;- bettor_sim_data(bets = 5000, bettors = 500) %&gt;%
+  filter(bet_number == 5000) %&gt;% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = &quot;darkslateblue&quot;, color = &quot;white&quot;,binwidth = 5000) +
+    geom_vline(aes(xintercept=0), col =&quot;black&quot;) +
+    scale_x_continuous(labels = scales::dollar) +
+    labs(title = &quot;Bets: 5000&quot;) 
+
+
+grid.arrange(p1, p2, p3, p4, nrow = 2, ncol = 2)</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-1_files/figure-html/bettor_sim_multi-1.png" width="672" /></p>
+<p>The black vertical line in each plot marks the $0 point. Everything to the left of the line is a negative result. As the number of bets rise the number of players that end in the negative increases. By 2,500 bets almost all of the bettors are negative. After 5,000 bets all of the bettors are far below zero costing them thousands of dollars. These results assume that each bettor wins 50% of his bets.</p>
+</div>
+<div id="what-if-touts-hit-at-the-rate-they-claim-to" class="section level3">
+<h3>What if touts hit at the rate they claim to?</h3>
+<p>Before we get ahead of ourselves looking at a 70% win rate let’s be a little more realistic and see what a 55% winner looks like. Rather than rerunning the same four functions from above and combining them again (with new win percentage parameters) we will turn the code above into a resuable function so we can easily rerun our simulations with new parameters.</p>
+<pre class="r"><code>bet_hist_dist &lt;- function(bets, bettors, winPct, color,bw) {
+  bettor_sim_data(bets = bets,
+                  bettors = bettors,
+                  winPct = winPct) %&gt;%
+    filter(bet_number == bets) %&gt;%
+    ggplot(aes(balance)) +
+    geom_histogram(fill = color,
+                   color = &quot;white&quot;,
+                   binwidth = bw) +
+    geom_vline(aes(xintercept = 0), color = &quot;black&quot;) +
+    scale_x_continuous(labels = scales::dollar) +
+    labs(title = paste(&quot;Bets&quot;, bets))
+}
+
+bet_hist_dist(100, 500, .50, &quot;azure3&quot;, 500)</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-1_files/figure-html/bettor_sim_breakeven-1.png" width="672" /></p>
+<p>The function will plot histogram similar to the histograms above. There’s a few extra parameters now; <code>color</code> and <code>bw</code> (which is short for binwidth). These two parameters make it easier when we combine multiple historgrams. Color is obvious but we turn bindwidth into a parameter because increasing the number of bets also increases the amount won and lost.vWe could just use a formula like <code>bets * 3</code> for binwidth but setting the parameter lets us control the shape of the histrogram to fit in with the other histograms on the page.</p>
+<p>Now that we have a working function that plots the data in a format it’s time to rerun the function to explore how a 55% fares over different number of bets.</p>
+<p>Instead of running the function four seperate times each with different parameters we can use the <code>pmap</code> function from the <code>purrr</code> package. Pass a list of lists containing the various parameters and the function to <code>pmap</code>. To keep things clean assign the list of lists to a object named params. Next assign the results of <code>pmap</code> to <code>po</code> which is now a list containing the four different histograms (the reason the number of histograms is four is because our params list has a list containing four items, <code>pmap</code> will iterate over each setting).</p>
+<p>Select each list item using the <code>[[ ]]</code> notation and put all four of them in the <code>grid.arrange</code> function.</p>
+<pre class="r"><code># The parameters that go to the bet_hist_dist function above.
+params &lt;- list(
+  bets = list(100, 500, 2500, 5000),
+  bettors = list(500),
+  winPct = list(.55),
+  color = list(&quot;bisque&quot;, &quot;chartreuse3&quot;, &quot;cyan2&quot;, &quot;darkslateblue&quot;),
+  bw = list(500, 1000, 2500, 5000)
+)
+
+po &lt;- pmap(params, bet_hist_dist)
+grid.arrange(po[[1]], po[[2]], po[[3]], po[[4]], nrow = 2, ncol = 2)</code></pre>
+<p><img src="/post/2017-05-12-bad-bet-do-sports-handicappers-win-part-1_files/figure-html/bettor_sim_55-1.png" width="672" /></p>
+<p>Considering that it’s nearly impossible to go broke hitting 55% after 2500 bets and after 5000 bets you’ll be up on average 30k (remember this is on $100 units) running the same sim on 60%+ winner is redundent.</p>
+<p>If you can hit 55% consistently and get down it’s like having your own private ATM. Think about that the next time you seeing someone on twitter selling their “70% Weekend Special” for $199.</p>
+<p>Next time we’ll look at the more realistic situation of altering our bet size based on our bankroll.</p>
+</div>
+</div>
+
+    </div>
+  </article>
+
+  
+<section id="comments">
+  <div id="disqus_thread"></div>
+  <script>
+  var disqus_config = function () {
+  
+  };
+  (function() {
+    var inIFrame = function() {
+      var iframe = true;
+      try { iframe = window.self !== window.top; } catch (e) {}
+      return iframe;
+    };
+    if (inIFrame()) return;
+    var d = document, s = d.createElement('script');
+    s.src = '//corywaters.disqus.com/embed.js'; s.async = true;
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/highlight.min.js"></script>
+
+
+
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/r.min.js"></script>
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-107296047-1', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+  </body>
+</html>
+

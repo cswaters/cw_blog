@@ -1,0 +1,403 @@
+---
+title: Working with semi-unstructred text in R
+author: Cory Waters
+date: '2017-11-08'
+slug: working-with-semi-unstructred-text-in-r
+categories:
+  - R
+tags:
+  - data
+  - text
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(knitr)
+```
+
+### Motivation
+
+Toying with an classification problem, that uses the uses the [Federalist Papers](https://en.wikipedia.org/wiki/The_Federalist_Papers), I became more interested in converting unstructured text into a format for analysis than the actual model. The goal was to train the classifier on known author and use that model to predict the author of the dozen or so essays where authorship is unknown (or at least debatable).
+
+I didn't have the original data set. Let's see how trivial it is to create the document.
+
+### Getting the original document
+
+There's an R package for almost anything you can think of. This example is no different. The [Federalist Papers](https://en.wikipedia.org/wiki/The_Federalist_Papers) are available in a text document through [Project Gutenberg](https://www.gutenberg.org/). [gutenbergr](https://github.com/ropenscilabs/gutenbergr) downloads documents from Project Gutenberg as data frames.
+
+Download the document and remove the blank lines (in this case rows).
+
+```{r message=FALSE, warning=FALSE}
+library(gutenbergr)
+fdrslt <- gutenberg_download(18) # Federalist Papers id number=18 in PG lib
+head(fdrslt, 20) %>% 
+  filter(text != '') %>% # hide blank lines to show more text output
+  kable()
+```
+
+### Come up with a plan
+
+Right now we have a data frame with two columns, `gutenberg_id` and `text`. The id  is important with multiple documents but in this situation it's useless. Also, get rid of all the blank spaces in the data frame. Save the output to a new data frame. Why? So we can come back to the original if needed without hitting up the Gutenberg API again.
+
+```{r}
+f_papers <- fdrslt %>% 
+  filter(text != '') %>% 
+  select(text)
+
+paste("There's", nrow(f_papers), "lines in the dataframe.")
+```
+
+[The "Federalist Papers" consist of 85 essays](https://www.loc.gov/rr/program/bib/ourdocs/federalist.html). Those 85 essays are split up over `r nrow(f_papers)` in the `f_papers` data frame.
+
+Currently there's no way for us to tell where one essay starts and ends (other than by hand). Then we need to find a way to label the essay with the proper author.
+
+I envision the final output is a data frame with three columns.
+
+1. Essay number i.e. "Federalist Number 3"
+2. Essay author (when known)
+3. Text
+
+All we have is text with little structure.
+
+### Finding the essay number
+
+```{r}
+f_papers %>% 
+  head(3) %>% 
+  kable()
+```
+
+First line of the document is "FEDERALIST. No. 1", it's possible that all the essays are titled in a similar way. Because we know the number of essays in the Papers we can test our theory.
+
+```{r}
+library(stringr) # working with text is easier with this package
+
+f_papers <- f_papers %>% 
+  map_df(str_to_lower) %>% # everything lowercase = easier to match 
+  map_df(str_trim) # remove extra white space for matching
+
+(n <- sum(str_detect(f_papers$text, "federalist")))
+```
+
+The word "federalist" shows up in the document `r n` times. Only a couple more than the number of essays. Is it possible that each essay is titled and the other usages can be filtered out somehow?
+
+The first 10 follow a `federalist. no. n` pattern. 
+
+We could: 
++ Search for results that follow that exact format. 
+
+Then again, what if all the titles don't conform to that structure? 
+
++ Come up with a regular expression that matches everything that's close-ish? 
+
+I try to stay away from regexp when possible. 
+
+#### `stringr` to the rescue
+
+`str_detect` in the `stringr` package accomplishes exactly what's needed. It returns a `T` or `F` value depending on if the specified text is in the vector passed to the function. Use the output vector to filter on only the rows that contain the text "federalist." Now we can look for the extra occurrences. We're looking for a programmatic way of separating title from text.
+
+
+```{r}
+f_papers[str_detect(f_papers$text, "federalist"),] %>% 
+  head(10) %>% 
+  kable()
+```
+
+After some trial and error the pattern emerged of short titles and long lines of text. A quick look shows that the overwhelming majority of rows/lines have 50+ characters.
+
+```{r}
+theme_set(theme_minimal()) # I prefer the minimal theme
+tibble(n_char = nchar(f_papers$text)) %>% 
+  ggplot(aes(n_char)) +
+  geom_density() +
+  labs(x = 'Number of characters in line')
+  
+```
+
+Yet, the title format contains less than 20 characters.
+
+```{r}
+nchar("federalist no. 10")
+```
+
+Even if we increased the number of characters to thirty, (maybe "federalist number __" is used somewhere) we'll be able to zero in on the titles.
+
+```{r}
+f_papers %>% 
+  mutate(title = str_detect(f_papers$text, 
+                            'federalist') & nchar(text) <= 30) %>% 
+  filter(title == TRUE) %>% 
+  nrow()
+  
+  
+```
+
+Using the character method we're down to 86 instances of "federalist" but that's still one too many. Maybe there's a duplicate?
+
+```{r}
+f_papers %>% 
+  mutate(title = str_detect(f_papers$text, 
+                            'federalist') & nchar(text) <= 30) %>% 
+  filter(title == TRUE) %>% 
+  distinct() %>% 
+  nrow()
+```
+
+That's the problem. A duplicate record in the text. We need to find it.
+
+```{r}
+f_papers %>% 
+  mutate(title = str_detect(f_papers$text, 
+                            'federalist') & nchar(text) <= 30) %>% 
+  filter(title == TRUE) %>% 
+  group_by(text) %>% 
+  tally(sort=TRUE) %>% 
+  head() %>% 
+  kable()
+```
+
+"federalist no. 70" shows up twice. We'll use a little trick of converting the rownames into columns via the `rownames_to_column` function in the `tibble` package. Because there's no rownames the row number will be converted to a column and is joined to the data frame.
+
+```{r}
+f_papers %>% 
+  rownames_to_column() %>% 
+  filter(text == 'federalist no. 70')
+```
+
+On first glance there's a duplicate essay in the Gutenberg file. This is odd. It's hard to believe that a popular source of information could host a "bad" version of a major document. 
+
+
+The first ten lines are the same. We're going to have to dig deeper.
+
+```{r}
+# we got the starting row numbers from the cell above
+f_papers[14539:14549,] == f_papers[14848:14858,]
+```
+
+#### Removing the duplicate essay
+
+Get the starting line for next essay in the document.
+
+```{r}
+fed_71 <- f_papers %>% 
+  rownames_to_column() %>% 
+  filter(text == "federalist no. 71") %>% 
+  pull(rowname)
+
+paste("Federalist No. 71 starts on row", fed_71)
+```
+
+The second copy of "Federalist No. 70" starts before "Federalist No. 71," the dupes look like they're back to back. If they're full duplicates they should have the same number of rows.
+
+```{r}
+start_fed70a <- 14539 # info from a few cells above
+start_fed70b <- 14848
+
+nrows_fed70a <- (start_fed70b - 1) - start_fed70a
+nrows_fed70b <- as.numeric(fed_71) - start_fed70b
+
+nrows_fed70a == nrows_fed70b
+```
+
+"Federalist No. 70" is `r nrows_fed70a` rows in this data frame.
+
+```{r}
+end_a <- start_fed70a + (nrows_fed70a - 1)
+end_b <- start_fed70b + (nrows_fed70b - 1)
+
+f_papers[start_fed70a:end_a, ] %>% 
+  bind_rows(f_papers[start_fed70b:end_b, ]) %>% 
+  distinct() %>% 
+  nrow()
+
+```
+
+When we combine the two essays into a data frame and call `distinct` we're left with the same number of rows as a single essay. This means they're perfect duplicates of one another. The plan is to filter one out.
+
+```{r}
+f_papers <- f_papers[-(start_fed70a:end_a),]
+```
+
+Now we'll add a column with the essay title. The `zoo` package has a function `na.locf` that forward fills `NA` values until it reaches a non-`NA` value. 
+
+```{r}
+f_papers <- f_papers %>% 
+  mutate(title = str_detect(f_papers$text, 
+                            'federalist') & nchar(text) <= 30,
+         fed_num = ifelse(title, text, NA),
+         fed_num = zoo::na.locf(fed_num))
+```
+
+### Creating an author table
+
+Now we need to grab the author for each essay and create a column with the information.
+
+The "Federalist Papers" is known to have three authors: Alexander Hamilton,  James Madison, and John Jay. They all wrote under the pseudonym "Publius" but over time the authorship of most of the essays became known. The author for twelve of the essays is debated still to this day. 
+
+Luckily, the authors (when known) are listed at the top of each essay.
+
+```{r}
+f_papers %>% 
+  head(5) %>% 
+  kable()
+```
+
+A similar method to the one used to get the essay number can be used to get the author.
+
+```{r}
+authors <- c('madison', 'hamilton', 'jay')
+
+author_table <- f_papers %>% 
+  mutate(author = text %in% authors) %>% 
+  filter(author == TRUE) %>% 
+  select(fed_num, text)
+
+author_table %>% 
+  head(10) %>% 
+  kable()
+```
+
+If there's 85 essays and the authorship of 12 is in dispute there should be 73 rows in the `author_table`.
+
+```{r}
+nrow(author_table)
+```
+
+That's unfortunate. Time to dig in and find the missing records.
+
+```{r message=FALSE}
+missing_authors <- f_papers %>% 
+  select(fed_num) %>% 
+  distinct() %>% 
+  anti_join(author_table)
+
+missing_authors %>% 
+  kable()
+```
+
+[Google turns up the info we're looking for.](https://www.congress.gov/resources/display/content/The+Federalist+Papers)
+
+Essays 18 through 20 were written by both Madison and Hamilton. That's why it didn't show up on our search. The rest of the essays were written by Hamilton or Madison, so I'm using "hamilton or madison" to mark them.
+
+```{r}
+missing_authors$text <- c(rep('hamilton and madison',3),rep('hamilton or madison', 11))
+
+author_table <- author_table %>% 
+  bind_rows(missing_authors)
+
+nrow(author_table)
+```
+
+The authorship table is complete and can be added to the "Federalist" text. We need to change the column from `text` in the `author_table`. `author` is already taken. 
+
+```{r message=FALSE}
+names(author_table) <- c('fed_num','fed_author')
+f_papers <- f_papers %>% 
+  left_join(author_table)
+```
+
+The data frame `f_papers` now contains four columns. 
+
+1. Text
+2. Essay the text comes from
+3. Essay's author
+4. Start of new essay
+
+At this point we can drop the `title` column, export to `csv` and call it a day. But there's more issues.
+
+```{r}
+f_papers %>% 
+  head(8) %>% 
+  select(text) %>% 
+  kable()
+```
+
+#### Almost done
+
++ We don't need the title of each essay at the top of the text if we're identifying it in a separate column.
++ The text between the essay title and the author publication info is not part of the essay text.
+
+The code below is complicated, probably not that efficient, and could be re-written in a cleaner format. However, this is a one time job and I don't want to spend lots of time trying to solve a problem the right way when the "wrong way" works and comes to me much quicker.
+
+I'll try to explain what's going on in plain language. The goal is to isolate the rows of text that contain one of three things.
+
+1. The essay number i.e. "federalist no. 6"
+2. The essay author i.e. "hamilton"
+3. The text between the essay number and author that contains information about the journal where the essay was published, and sometimes the date.
+
+We need to accept we're not going to be able to remove 100% of the text we want to. But we want to be close to that number. Counting the number of lines between the essay number and number gives answers between four and six rows usually. That doesn't do us much good. We need a way to count the number of lines between the number and author and match those to row numbers. Then filter out those row numbers returning only the essay text.
+
+Here's how I approached the problem:
+
+1. Get all the authors 
+2. Add the row numbers as a column, change the column name to `start`
+3. Match the rows where the text column contains the author(s)
+4. Return only the rows where the row is a essay number (`title`) or the author (`author`)
+5. Get the difference in between the different row numbers (`start`), add it as a column (`d`)
+6. Filter to only return essay number (`title`) rows
+7. Add the difference between the essay number and author (`d`) to the `start` column, this is the `stop` column.
+8. Return (via `select`) only the `start` and `stop` column.
+
+This data frame we assign to `info_rows` contains the starting row number for each new essay in the `start` column and the author row number for that same essay in the `stop` column. The numbers in between those two numbers are the rows we need to filter out.
+
+Now we need a way to generate all the row numbers to filter out. The easiest option I could think of is passing the start and stop columns to `seq` via `map`. The output needs to be converted to a vector, `unlist` works perfectly. This vector of row numbers can be passed to a data frame to either filter or filter out the desired rows. 
+
+```{r}
+authors <- unique(f_papers$fed_author)
+
+info_rows <- f_papers %>% 
+  rownames_to_column() %>% 
+  mutate(author = text %in% authors,
+         start = as.numeric(rowname)) %>% 
+  select(title, author, start) %>% 
+  filter(title == TRUE | author == TRUE) %>% 
+  mutate(d = c(diff(start),0)) %>% 
+  filter(title == TRUE) %>% 
+  mutate(stop = start + d) %>% 
+  select(start,stop)
+  
+
+info_idx <- map2(info_rows$start,
+                 info_rows$stop,
+                 ~ seq(.x, .y)) %>%
+                 unlist()
+
+extra_info <- f_papers[info_idx, ]
+f_papers <- f_papers %>% 
+  anti_join(extra_info) %>% 
+  select(fed_num, fed_author, text)
+
+glimpse(f_papers)
+```
+
+Our final output fits the format listed at the start of the article. A data frame with three columns. 
+
+1. Essay number
+2. Essay author
+3. Text
+
+We're ready to export to `.csv`
+
+```{r eval=FALSE}
+write_csv(f_papers, 'federalist_papers_parsed.csv')
+```
+
+### What's next?
+
+We're now ready for analysis. We can use one of the R packages tailored to text manipulation. My favorite is `tidytext`. Check out the book ["Text Mining with R"](http://tidytextmining.com) for a fantastic explanation of the `tidytext` package (written by the same authors), and text analysis in general.
+
+```{r}
+library(tidytext)
+
+# word analysis formatting
+tidy_fed_words <- f_papers %>%
+  unnest_tokens(word, text)
+ 
+# or ngrams
+f_papers %>% 
+  unnest_tokens(ngram, text, token = "ngrams", n = 2) %>% 
+  head(10) %>% 
+  kable()
+```
+

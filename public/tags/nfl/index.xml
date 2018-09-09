@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Nfl on Questioning Certainty</title>
+    <link>/tags/nfl/</link>
+    <description>Recent content in Nfl on Questioning Certainty</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 23 Jun 2018 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/nfl/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>NFL Ratings via MLE</title>
+      <link>/2018/06/23/nfl-ratings-via-mle/</link>
+      <pubDate>Sat, 23 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/06/23/nfl-ratings-via-mle/</guid>
+      <description>Rating NFL Teams - Wayne Winston’s method In Wayne Winston’s book Mathletics he devotes a chapter to “Rating Sports Teams.” This technique is also covered in a couple of his other wonderful excel books. The technique is covered (less thorougly) in an older article avaiable on the Office site, titled “Using Solver to Rate Sports Teams”.
+Let’s implement a very simple version of this in R. I’m not an optimization expert.</description>
+    </item>
+    
+    <item>
+      <title>Home Field Advantage in the NFL</title>
+      <link>/2017/09/25/home-field-advantage-in-the-nfl/</link>
+      <pubDate>Mon, 25 Sep 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/09/25/home-field-advantage-in-the-nfl/</guid>
+      <description>Calculating HFA for NFL the Easy Way We are going to come up with a number for home field advantage (pretend we don’t already know that 3 points is a pretty solid estimate).
+Since we only need team, score, and location we could use just about any dataset. For NFL data it’s hard to beat ArmchairAnalysis for quality and price.
+The GAME.csv file contains all the information we’re looking for (which isn’t much more than team scores).</description>
+    </item>
+    
+  </channel>
+</rss>

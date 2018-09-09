@@ -1,0 +1,382 @@
+---
+title: Creating a football dataset, Take Two
+author: Cory Waters
+date: '2017-08-25'
+slug: creating-a-football-dataset-take-two
+categories:
+  - R
+tags:
+  - data
+---
+
+
+
+<div id="a-new-source" class="section level2">
+<h2>A new source</h2>
+<p>I updated my <a href="https://www.corywaters.com/08/20/2017/creating-an-nfl-point-spread-dataset/">previous post</a>. The data used to create db wasn’t reliable and missing games. Because of that I set out to find a new free source. I found a great one. <a href="http://www.drwagpicks.com/p/blog-page.html">Dr. Wags Picks - Algorithm Based Sports Handicapper</a> makes NCAA and NFL data available on his blog. He even tries to follow the repole format.</p>
+<p>This time we’re going to grab the NCAA and NFL data. We’ll load the <code>tidyverse</code> again.</p>
+<pre class="r"><code>library(tidyverse)</code></pre>
+<p>We have two ways of getting the data using R:</p>
+<ol style="list-style-type: decimal">
+<li>Get the indivdual links to the files.</li>
+<li>Get the link format and create a function to change the dates and then iterate over that list.</li>
+</ol>
+<p>We’re going with option 2. I copied a link from the <a href="http://www.drwagpicks.com/p/blog-page.html">Dr Wag’s Picks page</a>. We will breakdown the structure of that link. But first let’s download a season and see how it looks.</p>
+<pre class="r"><code>wags_odds &lt;- &#39;http://sports.snoozle.net/api?league=cfb&amp;fileType=csvFile&amp;statType=latestodds&amp;startDate=2015-08-01&amp;endDate=2016-02-28&amp;source=drwagpics&#39;
+
+wags &lt;- read_csv(wags_odds)
+
+wags %&gt;% 
+  head() %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">Date</th>
+<th align="left">Vis Team</th>
+<th align="left">Home Team</th>
+<th align="right">Vis Spread</th>
+<th align="right">Home Spread</th>
+<th align="right">Over Under</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">2015-09-03</td>
+<td align="left">FIU</td>
+<td align="left">Florida</td>
+<td align="right">13.0</td>
+<td align="right">-13.0</td>
+<td align="right">45.5</td>
+</tr>
+<tr class="even">
+<td align="left">2015-09-03</td>
+<td align="left">Oklahoma State</td>
+<td align="left">Michigan</td>
+<td align="right">-23.5</td>
+<td align="right">23.5</td>
+<td align="right">59.0</td>
+</tr>
+<tr class="odd">
+<td align="left">2015-09-03</td>
+<td align="left">Kentucky</td>
+<td align="left">Vanderbilt</td>
+<td align="right">-2.5</td>
+<td align="right">2.5</td>
+<td align="right">62.0</td>
+</tr>
+<tr class="even">
+<td align="left">2015-09-03</td>
+<td align="left">South Carolina</td>
+<td align="left">UNC</td>
+<td align="right">-1.5</td>
+<td align="right">1.5</td>
+<td align="right">62.0</td>
+</tr>
+<tr class="odd">
+<td align="left">2015-09-03</td>
+<td align="left">FIU</td>
+<td align="left">UCF</td>
+<td align="right">11.5</td>
+<td align="right">-11.5</td>
+<td align="right">44.5</td>
+</tr>
+<tr class="even">
+<td align="left">2015-09-03</td>
+<td align="left">Oklahoma State</td>
+<td align="left">Cent Michigan</td>
+<td align="right">-21.0</td>
+<td align="right">21.0</td>
+<td align="right">58.0</td>
+</tr>
+</tbody>
+</table>
+<p>Pretty standard stuff. The first thing to notice is the column names aren’t R friendly. We need to deal with that later.</p>
+<p>The urls all follow the same strucutre. We’re making an api call to <code>http://sports.snoozle.net/api?</code> and passing the variables for:</p>
+<ul>
+<li>league</li>
+<li>fileType</li>
+<li>statType</li>
+<li>startDate</li>
+<li>endDate</li>
+<li>source</li>
+</ul>
+<p><code>league</code> is going to be either <code>nfl</code> or <code>ncaa</code>. Here we’re using <code>ncaa</code>. Leave the file type as csv. There’s two <code>statType</code> options, <code>latestodds</code> or <code>matchups</code>. Grab <code>latestodds</code> for now. NFL and college football both start their season in year n and end it in year n + 1. Both leagues don’t start before August and don’t end later than Febrauray. The only piece of the date we need to alter is the year.</p>
+<p>The function below takes two arguments, the <code>.year</code> and <code>.sport</code>. The output is a url that points to a csv file of odds data for the league (called <code>.sport</code>) and year.</p>
+<pre class="r"><code>format_urls &lt;- function(.year, .sport) {
+  base_url &lt;- &#39;http://sports.snoozle.net/api?league=&#39;
+  paste0(
+    base_url,
+    .sport,
+    &#39;&amp;fileType=csvFile&amp;statType=latestodds&amp;startDate=&#39;,
+    .year,
+    &#39;-08-01&amp;endDate=&#39;,
+    .year + 1,
+    &#39;-02-28&amp;source=drwagpics&#39;
+  )
+}</code></pre>
+<p>Pass a sequence of years to the <code>format_urls</code> function via a <code>map</code> function from the <code>purrr</code> package. The first year in the dataset is 2003 and last season was 2016. The output is a character vector of urls.</p>
+<pre class="r"><code>odds_urls &lt;- map_chr(2003:2016, 
+                     ~format_urls(.year = .x, .sport = &#39;cfb&#39;))
+tail(odds_urls, 3)</code></pre>
+<pre><code>## [1] &quot;http://sports.snoozle.net/api?league=cfb&amp;fileType=csvFile&amp;statType=latestodds&amp;startDate=2014-08-01&amp;endDate=2015-02-28&amp;source=drwagpics&quot;
+## [2] &quot;http://sports.snoozle.net/api?league=cfb&amp;fileType=csvFile&amp;statType=latestodds&amp;startDate=2015-08-01&amp;endDate=2016-02-28&amp;source=drwagpics&quot;
+## [3] &quot;http://sports.snoozle.net/api?league=cfb&amp;fileType=csvFile&amp;statType=latestodds&amp;startDate=2016-08-01&amp;endDate=2017-02-28&amp;source=drwagpics&quot;</code></pre>
+<p>Next, call <code>read_csv</code> on the urls in the <code>odds_urls</code> vector. <code>map_df</code> passes each url to the <code>read_csv</code> function. Then it combines the different files into one dataframe. Another way to do this is <code>map(odds_urls, read_csv) %&gt;% bind_rows()</code>. <code>map_df</code> acts as a short cut. A nice feature of <code>map_df</code> is the ability to add a <code>.id</code> column. We’re going to use this to assign the season in the dataframe.</p>
+<pre class="r"><code>odds &lt;- map_df(odds_urls, read_csv, .id = &#39;season&#39;)</code></pre>
+<p>Get the number of unique seasons.</p>
+<pre class="r"><code>n_distinct(odds$season)</code></pre>
+<pre><code>## [1] 14</code></pre>
+<p>Instead of renaming the seasons, 1 = 2003, 2 = 2004, etc., I prefer to create a <em>key</em> tibble and join the two<a href="#fn1" class="footnoteRef" id="fnref1"><sup>1</sup></a>. Create a “throw away” tibble inside the <code>left_join</code> function<a href="#fn2" class="footnoteRef" id="fnref2"><sup>2</sup></a>. The <code>season</code> column goes to 14 and year maxes out at 2016. Joining the two, every record that has a 1 in the <code>season</code> column now has a column <code>seas</code> with 2003. Next drop the <code>season</code> column and add some R friendly column names in <code>set_names</code>.</p>
+<p>Now <a href="http://r4ds.had.co.nz/data-import.html#writing-to-a-file">export the data</a> to your format of choice.</p>
+<pre class="r"><code>odds &lt;- odds %&gt;%
+  left_join(tibble(season = as.character(1:14), 
+                   seas = 2003:2016)) %&gt;%
+  select(-season) %&gt;%
+  set_names(c(&#39;date&#39;, &#39;away&#39;, &#39;home&#39;, 
+              &#39;away_sprd&#39;, &#39;home_sprd&#39;, &#39;ou&#39;, 
+              &#39;seas&#39;))
+
+# export to csv
+# write_csv(odds, &quot;cfb_odds.csv&quot;)</code></pre>
+</div>
+<div id="adding-stat-data" class="section level2">
+<h2>Adding stat data</h2>
+<div id="improving-the-url-function" class="section level4">
+<h4>Improving the url function</h4>
+<p>Look at the files on the <a href="http://www.drwagpicks.com/p/blog-page.html">Dr. Wags Picks cfb data page</a>. There’s two types of data per season. Odds and stats. Alter our url formatting function from above to select which one of these file types to download. It’s as easy as changing <code>&amp;statType=latestodds</code> to <code>&amp;statType=matchup</code> in the url. Add an argument <code>.stat</code> to the function.</p>
+<pre class="r"><code>#&#39; update api call to include stat type
+format_urls &lt;- function(.year, .sport, .stat) {
+  base_url &lt;- &#39;http://sports.snoozle.net/api?league=&#39;
+  # stat types = &#39;latestodds&#39; or &#39;matchup&#39;
+  paste0(
+    base_url,
+    .sport,
+    &#39;&amp;fileType=csvFile&amp;statType=&#39;,
+    .stat,
+    &#39;&amp;startDate=&#39;,
+    .year,
+    &#39;-08-01&amp;endDate=&#39;,
+    .year + 1,
+    &#39;-02-28&amp;source=drwagpics&#39;
+  )
+}</code></pre>
+<p>To download the data follow the same procedure we did earlier.</p>
+<ol style="list-style-type: decimal">
+<li>Create the urls to the data</li>
+<li>Pass those urls to <code>read_csv</code> via <code>map</code></li>
+<li>Add a throw away tibble that maps the year to the index column</li>
+<li>Drop the index column</li>
+</ol>
+<pre class="r"><code>matchups &lt;- map_chr(2003:2016,
+                    ~ format_urls(
+                      .year = .x,
+                      .sport = &#39;cfb&#39;,
+                      .stat = &#39;matchup&#39;
+                    )) %&gt;%
+  map_df(read_csv, .id = &#39;season&#39;) %&gt;% 
+  left_join(
+    tibble(season = as.character(1:14), 
+          seas = 2003:2016)
+    ) %&gt;% 
+  select(-season)</code></pre>
+<p>If you’re following along, you got the warning message that “Duplicated column names were deduplicated.” I’ve surpressed the message here, it’s is long and reproduced 14 times. But here’s a snippet.</p>
+<blockquote>
+<p>Duplicated column names deduplicated: ‘Rushing Yards’ =&gt; ‘Rushing Yards_1’ [20], ’Rushing Attempts’ =&gt; ‘Rushing Attempts_1’ [21], ’Passing Yards’ =&gt; ‘Passing Yards_1’ [22], ’Passing Attempts’ =&gt; ‘Passing Attempts_1’ [23], ’Passing Completions’ =&gt; ‘Passing Completions_1’ [24], ’Penalties’ =&gt; ‘Penalties_1’ [25], ’Penalty Yards’ =&gt; ‘Penalty Yards_1’ [26], ’Fumbles Lost’ =&gt; ‘Fumbles Lost_1’ [27], ’Interceptions Thrown’ =&gt; ‘Interceptions Thrown_1’ [28], ’1st Downs’ =&gt; ‘1st Downs_1’ [29], ’3rd Down Attempts’ =&gt; ‘3rd Down Attempts_1’ [30], ’3rd Down Conversions’ =&gt; ‘3rd Down Conversions_1’ …</p>
+</blockquote>
+<p>Take a look at the imported data.</p>
+<pre class="r"><code>glimpse(matchups)</code></pre>
+<pre><code>## Observations: 11,231
+## Variables: 36
+## $ Date                   &lt;date&gt; 2003-08-23, 2003-08-23, 2003-08-28, 20...
+## $ Vis Team               &lt;chr&gt; &quot;Grambling St&quot;, &quot;Cal&quot;, &quot;Georgia Tech&quot;, ...
+## $ Rushing Yards          &lt;int&gt; 50, 62, 96, 42, 181, 113, 112, 77, 167,...
+## $ Rushing Attempts       &lt;int&gt; 21, 27, 23, 32, 44, 50, 35, 26, 41, 33,...
+## $ Passing Yards          &lt;int&gt; 210, 378, 147, 215, 340, 70, 110, 280, ...
+## $ Passing Attempts       &lt;int&gt; 47, 42, 24, 29, 44, 26, 24, 41, 23, 41,...
+## $ Passing Completions    &lt;int&gt; 23, 25, 15, 18, 25, 14, 12, 19, 14, 18,...
+## $ Penalties              &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Penalty Yards          &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Fumbles Lost           &lt;int&gt; 2, 0, 3, 2, 0, 3, 1, 1, 0, 2, 2, 0, 0, ...
+## $ Interceptions Thrown   &lt;int&gt; 1, 1, 1, 2, 1, 2, 1, 1, 1, 3, 0, 1, 0, ...
+## $ 1st Downs              &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 3rd Down Attempts      &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 3rd Down Conversions   &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 4th Down Attempts      &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 4th Down conversions   &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Time of Possession     &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Score                  &lt;int&gt; 0, 28, 13, 20, 41, 7, 13, 20, 21, 3, 13...
+## $ Home Team              &lt;chr&gt; &quot;San Jose State&quot;, &quot;Kansas State&quot;, &quot;BYU&quot;...
+## $ Rushing Yards_1        &lt;int&gt; 128, 330, 86, 183, 40, 91, 59, 202, 134...
+## $ Rushing Attempts_1     &lt;int&gt; 40, 46, 32, 44, 30, 31, 43, 53, 35, 53,...
+## $ Passing Yards_1        &lt;int&gt; 335, 205, 276, 160, 407, 204, 266, 180,...
+## $ Passing Attempts_1     &lt;int&gt; 42, 18, 47, 35, 47, 30, 35, 26, 26, 18,...
+## $ Passing Completions_1  &lt;int&gt; 27, 9, 31, 19, 36, 14, 21, 16, 15, 10, ...
+## $ Penalties_1            &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Penalty Yards_1        &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Fumbles Lost_1         &lt;int&gt; 2, 0, 0, 0, 0, 0, 0, 0, 0, 4, 1, 1, 1, ...
+## $ Interceptions Thrown_1 &lt;int&gt; 0, 0, 2, 0, 0, 1, 1, 2, 1, 0, 1, 2, 0, ...
+## $ 1st Downs_1            &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 3rd Down Attempts_1    &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 3rd Down Conversions_1 &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 4th Down Attempts_1    &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ 4th Down conversions_1 &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Time of Possession_1   &lt;int&gt; -999, -999, -999, -999, -999, -999, -99...
+## $ Score_1                &lt;int&gt; 29, 42, 24, 19, 38, 31, 20, 40, 28, 17,...
+## $ seas                   &lt;int&gt; 2003, 2003, 2003, 2003, 2003, 2003, 200...</code></pre>
+</div>
+<div id="cleaning-up-the-data" class="section level4">
+<h4>Cleaning up the data</h4>
+<p>Unlike the odds data the matchup data needs some work before export.</p>
+<p>First thing is the <code>_1</code> at the end of half the columns. <code>read_csv</code> “fixes” duplicate column headers by appending a <code>_1</code> to the end of the duplicate name. In this case it isn’t helpful. Which team is home? Away? The <code>_1</code> doesn’t say.</p>
+<p>There’s some other issues:</p>
+<ol style="list-style-type: decimal">
+<li>Column names with spaces</li>
+<li>Some columns start with a number</li>
+<li>Column names don’t match up with odds data now</li>
+<li>-999 values instead of <code>NA</code></li>
+</ol>
+<p>Base R has a function <code>make.names</code>. That function corrects column names into an R acceptable format. For example, it replaces spaces with a period. The <code>tibble</code> package has a function <code>tidy_names</code>. According to the documentation it “ensures its input has non-missing and unique names…” There’s a argument <code>syntactic =</code> when set to <code>TRUE</code> applies the syntax changes of <code>make.names</code>. I’m not a fan of <code>make.names</code> and since <code>read_csv</code> adds <code>_1</code> to the duplicate column names we don’t need <code>make.names</code>.</p>
+</div>
+<div id="cleaning-up-header-names" class="section level4">
+<h4>Cleaning up header names</h4>
+<p>I prefer underscores to periods. That’s the first thing we’ll do. I also make my column headers lowercase when appropriate.</p>
+<pre class="r"><code>matchup_cols &lt;- names(matchups) %&gt;%
+  stringr::str_replace_all(&#39; &#39;, &#39;_&#39;) %&gt;%
+  tolower()
+matchup_cols</code></pre>
+<pre><code>##  [1] &quot;date&quot;                   &quot;vis_team&quot;              
+##  [3] &quot;rushing_yards&quot;          &quot;rushing_attempts&quot;      
+##  [5] &quot;passing_yards&quot;          &quot;passing_attempts&quot;      
+##  [7] &quot;passing_completions&quot;    &quot;penalties&quot;             
+##  [9] &quot;penalty_yards&quot;          &quot;fumbles_lost&quot;          
+## [11] &quot;interceptions_thrown&quot;   &quot;1st_downs&quot;             
+## [13] &quot;3rd_down_attempts&quot;      &quot;3rd_down_conversions&quot;  
+## [15] &quot;4th_down_attempts&quot;      &quot;4th_down_conversions&quot;  
+## [17] &quot;time_of_possession&quot;     &quot;score&quot;                 
+## [19] &quot;home_team&quot;              &quot;rushing_yards_1&quot;       
+## [21] &quot;rushing_attempts_1&quot;     &quot;passing_yards_1&quot;       
+## [23] &quot;passing_attempts_1&quot;     &quot;passing_completions_1&quot; 
+## [25] &quot;penalties_1&quot;            &quot;penalty_yards_1&quot;       
+## [27] &quot;fumbles_lost_1&quot;         &quot;interceptions_thrown_1&quot;
+## [29] &quot;1st_downs_1&quot;            &quot;3rd_down_attempts_1&quot;   
+## [31] &quot;3rd_down_conversions_1&quot; &quot;4th_down_attempts_1&quot;   
+## [33] &quot;4th_down_conversions_1&quot; &quot;time_of_possession_1&quot;  
+## [35] &quot;score_1&quot;                &quot;seas&quot;</code></pre>
+<p>The first set of the duplicated headers is for the away team (called “vis”) and the second set the home team. To make the headers more clear delete the <code>_1</code> suffix and add the prefix <code>away_</code> or <code>home_</code>. First replace the <code>vis_team</code> and <code>home_team</code> columns with <code>away</code> and <code>home</code>. This makes matching up the matchups dataframe and the odds dataframe easier.</p>
+<pre class="r"><code>matchup_cols[2] &lt;- &#39;away&#39;
+matchup_cols[19] &lt;- &#39;home&#39;
+matchup_cols[3:18] &lt;- paste0(&#39;away_&#39;, matchup_cols[3:18])
+matchup_cols[20:35] &lt;- matchup_cols[20:35] %&gt;% 
+  stringr::str_replace(&#39;_1&#39;, &#39;&#39;) %&gt;%
+  paste0(&#39;home_&#39;, .)
+matchup_cols</code></pre>
+<pre><code>##  [1] &quot;date&quot;                      &quot;away&quot;                     
+##  [3] &quot;away_rushing_yards&quot;        &quot;away_rushing_attempts&quot;    
+##  [5] &quot;away_passing_yards&quot;        &quot;away_passing_attempts&quot;    
+##  [7] &quot;away_passing_completions&quot;  &quot;away_penalties&quot;           
+##  [9] &quot;away_penalty_yards&quot;        &quot;away_fumbles_lost&quot;        
+## [11] &quot;away_interceptions_thrown&quot; &quot;away_1st_downs&quot;           
+## [13] &quot;away_3rd_down_attempts&quot;    &quot;away_3rd_down_conversions&quot;
+## [15] &quot;away_4th_down_attempts&quot;    &quot;away_4th_down_conversions&quot;
+## [17] &quot;away_time_of_possession&quot;   &quot;away_score&quot;               
+## [19] &quot;home&quot;                      &quot;home_rushing_yards&quot;       
+## [21] &quot;home_rushing_attempts&quot;     &quot;home_passing_yards&quot;       
+## [23] &quot;home_passing_attempts&quot;     &quot;home_passing_completions&quot; 
+## [25] &quot;home_penalties&quot;            &quot;home_penalty_yards&quot;       
+## [27] &quot;home_fumbles_lost&quot;         &quot;home_interceptions_thrown&quot;
+## [29] &quot;home_1st_downs&quot;            &quot;home_3rd_down_attempts&quot;   
+## [31] &quot;home_3rd_down_conversions&quot; &quot;home_4th_down_attempts&quot;   
+## [33] &quot;home_4th_down_conversions&quot; &quot;home_time_of_possession&quot;  
+## [35] &quot;home_score&quot;                &quot;seas&quot;</code></pre>
+<pre class="r"><code>names(matchups) &lt;- matchup_cols</code></pre>
+<p>Now we’re ready to combine the stats and odds.</p>
+<pre class="r"><code>cfb &lt;- matchups %&gt;% 
+  left_join(odds, by = c(&#39;date&#39;,&#39;home&#39;,&#39;away&#39;,&#39;seas&#39;))</code></pre>
+<p>Last thing to do is replace the <code>-999</code> values with <code>NA</code>.</p>
+<pre class="r"><code>cfb &lt;- map_df(cfb, ~na_if(., -999)) </code></pre>
+<p>We’re ready to export.</p>
+<pre class="r"><code>write_csv(cfb, &#39;cfb_db.csv&#39;)</code></pre>
+</div>
+<div id="getting-the-nfl-data" class="section level3">
+<h3>Getting the NFL data</h3>
+<p>Next we’re going to download the NFL data. Make sure that the format of the data is the same as the college data. If it is we can apply the same techniques as we did above. This makes the entire process go much faster.</p>
+<div id="check-the-format-of-the-odds-data" class="section level5">
+<h5>Check the format of the odds data</h5>
+<pre class="r"><code>nfl_odds &lt;- format_urls(.year = 2016,
+            .stat = &#39;latestodds&#39;,
+            .sport = &#39;nfl&#39;) %&gt;% 
+  read_csv()</code></pre>
+</div>
+<div id="check-the-format-of-the-matchup-data" class="section level5">
+<h5>Check the format of the matchup data</h5>
+<pre class="r"><code>nfl_matchup &lt;- format_urls(.year = 2016,
+                           .stat = &#39;matchup&#39;,
+                           .sport = &#39;nfl&#39;) %&gt;% 
+  read_csv()</code></pre>
+<p>Remember, we’re going to add a season column to the NFL matchups dataframe. That column is already added to the <code>matchups</code> dataframe. If the number of columns match the naming structure is likely the same.</p>
+<pre class="r"><code>ncol(nfl_matchup) + 1 == ncol(matchups)</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+<p>Since everything matches up we can apply the exact same techniques to the NFL data and we did the college.</p>
+</div>
+</div>
+<div id="making-it-reproducible" class="section level3">
+<h3>Making it reproducible</h3>
+<p>Create a dataframe with the variables combinations and the url they create. <code>cross_df</code> works like <code>expand.grid</code>.</p>
+<pre class="r"><code>seasons &lt;- 2003:2016
+stat_types &lt;- c(&#39;matchup&#39;,&#39;latestodds&#39;)
+sport_type &lt;- &#39;nfl&#39;
+
+nfl_urls &lt;- cross_df(list(year = seasons,
+                          stat = stat_types,
+                          sport = sport_type)) %&gt;%
+                          mutate(url = format_urls(.year = year, 
+                                                   .stat = stat, 
+                                                   .sport = sport))</code></pre>
+<div id="get-odds-data" class="section level5">
+<h5>Get odds data</h5>
+<p>Filter the <code>nfl_urls</code> dataframe to return only records where the <code>stat</code> equals “latestodds”. Use <code>pull</code> to grab the urls as a character vector and pass that to <code>map_df</code>. The rest follows the same procedure used earlier for the ncaa data.</p>
+<pre class="r"><code>odds &lt;- filter(nfl_urls, stat == &#39;latestodds&#39;) %&gt;% 
+  pull(url) %&gt;% 
+  map_df(read_csv, .id = &#39;season&#39;) %&gt;% 
+  left_join(
+    tibble(season = as.character(1:14), 
+           seas = 2003:2016)
+    ) %&gt;% 
+  select(-season) %&gt;% 
+  set_names(c(&#39;date&#39;, &#39;away&#39;, &#39;home&#39;, 
+              &#39;away_sprd&#39;, &#39;home_sprd&#39;, &#39;ou&#39;, 
+              &#39;seas&#39;))</code></pre>
+</div>
+<div id="get-matchup-data" class="section level5">
+<h5>Get matchup data</h5>
+<p>Filter for every record not equal to “latestodds”. This returns the matchup urls. Everything else is the same as above. But use the character vector <code>matchup_cols</code> in <code>set_names</code>. We created <code>matchup_cols</code> earlier. The vector is the R friendly headers for the matchup data.</p>
+<pre class="r"><code>matchups &lt;- filter(nfl_urls, stat != &#39;latestodds&#39;) %&gt;% 
+  pull(url) %&gt;% 
+  map_df(read_csv, .id = &#39;season&#39;) %&gt;% 
+  left_join(
+    tibble(season = as.character(1:14), 
+           seas = 2003:2016)) %&gt;% 
+  select(-season) %&gt;% 
+  set_names(matchup_cols)</code></pre>
+<p>Join the odds and matchups data.</p>
+<pre class="r"><code>nfl &lt;- matchups %&gt;% 
+  left_join(odds, by = c(&#39;date&#39;,&#39;home&#39;,&#39;away&#39;,&#39;seas&#39;))</code></pre>
+<p>Replace <code>-999</code> values with <code>NA</code>.</p>
+<pre class="r"><code>nfl &lt;- map_df(nfl, ~na_if(., -999)) </code></pre>
+<p>And export…</p>
+<pre class="r"><code>write_csv(nfl, &#39;nfl_db.csv&#39;)</code></pre>
+</div>
+<div id="save-for-later" class="section level4">
+<h4>Save for later</h4>
+<p>Now you have two football datasets. One for the NFL and one for college. Both have 14 seasons worth of data. At the end of this year you can easily append the new data.</p>
+</div>
+</div>
+</div>
+<div class="footnotes">
+<hr />
+<ol>
+<li id="fn1"><p><em>Key</em> tibble is my own term. I could have used <code>recode</code>.<a href="#fnref1">↩</a></p></li>
+<li id="fn2"><p>Despite being numeric the <code>season</code> column is stored as characters (that’s how <code>map_df</code> works) That’s why we wrap the <code>1:14</code> sequence in <code>as.character</code><a href="#fnref2">↩</a></p></li>
+</ol>
+</div>

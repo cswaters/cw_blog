@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>R on Questioning Certainty</title>
+    <link>/tags/r/</link>
+    <description>Recent content in R on Questioning Certainty</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 08 Sep 2018 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/r/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Extracting Odds from Sportsbook Feeds Using R</title>
+      <link>/2018/09/08/extracting-odds-from-sportsbook-feeds-using-r/</link>
+      <pubDate>Sat, 08 Sep 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/09/08/extracting-odds-from-sportsbook-feeds-using-r/</guid>
+      <description>Finding Feeds There’s some sportsbooks’ that post the address to their odds feed on the website. Other times it’s an open secret. Either way, if you do a little digging you’re going to find bookmaker feeds. (We’re only interested in free feeds here, there’s plenty of services you can pay for.)
+What format Data is transfered over the net is many different forms. REST and JSON, (god forbid) SOAP, and XML are the formats you’re likley to come across.</description>
+    </item>
+    
+  </channel>
+</rss>

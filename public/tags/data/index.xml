@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Data on Questioning Certainty</title>
+    <link>/tags/data/</link>
+    <description>Recent content in Data on Questioning Certainty</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 08 Sep 2018 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/tags/data/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>Extracting Odds from Sportsbook Feeds Using R</title>
+      <link>/2018/09/08/extracting-odds-from-sportsbook-feeds-using-r/</link>
+      <pubDate>Sat, 08 Sep 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/09/08/extracting-odds-from-sportsbook-feeds-using-r/</guid>
+      <description>Finding Feeds There’s some sportsbooks’ that post the address to their odds feed on the website. Other times it’s an open secret. Either way, if you do a little digging you’re going to find bookmaker feeds. (We’re only interested in free feeds here, there’s plenty of services you can pay for.)
+What format Data is transfered over the net is many different forms. REST and JSON, (god forbid) SOAP, and XML are the formats you’re likley to come across.</description>
+    </item>
+    
+    <item>
+      <title>Working with semi-unstructred text in R</title>
+      <link>/2017/11/08/working-with-semi-unstructred-text-in-r/</link>
+      <pubDate>Wed, 08 Nov 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/11/08/working-with-semi-unstructred-text-in-r/</guid>
+      <description>Motivation Toying with an classification problem, that uses the uses the Federalist Papers, I became more interested in converting unstructured text into a format for analysis than the actual model. The goal was to train the classifier on known author and use that model to predict the author of the dozen or so essays where authorship is unknown (or at least debatable).
+I didn’t have the original data set. Let’s see how trivial it is to create the document.</description>
+    </item>
+    
+    <item>
+      <title>Scraping NFL data with R</title>
+      <link>/2017/10/06/scraping-nfl-data-with-r/</link>
+      <pubDate>Fri, 06 Oct 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/10/06/scraping-nfl-data-with-r/</guid>
+      <description>Scraping data with R The packages needed.
+library(tidyverse) library(rvest) library(stringr) Read Page from url Sports data is all over the internet. Some of it is in a nice downloadable format. For example, it’s possible download almost all of the information in CSV format from pro-football-reference (or one of their other sites like &amp;lt;baseball-reference.com&amp;gt;). Other times the data is in a nice format but there’s no easy way to export or download it.</description>
+    </item>
+    
+    <item>
+      <title>Creating a football dataset, Take Two</title>
+      <link>/2017/08/25/creating-a-football-dataset-take-two/</link>
+      <pubDate>Fri, 25 Aug 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/08/25/creating-a-football-dataset-take-two/</guid>
+      <description>A new source I updated my previous post. The data used to create db wasn’t reliable and missing games. Because of that I set out to find a new free source. I found a great one. Dr. Wags Picks - Algorithm Based Sports Handicapper makes NCAA and NFL data available on his blog. He even tries to follow the repole format.
+This time we’re going to grab the NCAA and NFL data.</description>
+    </item>
+    
+    <item>
+      <title>Creating an NFL point spread dataset</title>
+      <link>/2017/08/20/creating-an-nfl-point-spread-dataset/</link>
+      <pubDate>Sun, 20 Aug 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/08/20/creating-an-nfl-point-spread-dataset/</guid>
+      <description>library(tidyverse) library(lubridate) Repole Data There’s a few R packages for sports data. Non, to my knowledge, focus on NFL football. More importantly, none are contain point spread and total data.
+The first question we need to solve is where are we going to get the data. There’s a few options.
+We can buy the data. Armchair Analysis is well worth the price. It goes far beyond scores and spreads. But it’s overkill for our needs.</description>
+    </item>
+    
+    <item>
+      <title>Sports Betting Links to Data and Stats</title>
+      <link>/2017/05/12/sports-betting-links-to-data-and-stats/</link>
+      <pubDate>Fri, 12 May 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/05/12/sports-betting-links-to-data-and-stats/</guid>
+      <description>This post got decent traffic on the old blog. It’s the one article that made it to this new version. The title was “Sports Betting Data Downloads” (which wasn’t a good name in hindsight). A quarter of those links are dead, and there’s new material out there. Here’s an updated but pared down list.
+Data Pay For Data note: I don’t make a dime off recommending any of these
+Most of the links are US focused unless otherwise noted.</description>
+    </item>
+    
+  </channel>
+</rss>

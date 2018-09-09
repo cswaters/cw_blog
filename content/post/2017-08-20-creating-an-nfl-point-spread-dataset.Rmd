@@ -1,0 +1,162 @@
+---
+title: Creating an NFL point spread dataset
+author: Cory Waters
+date: '2017-08-20'
+slug: creating-an-nfl-point-spread-dataset
+categories:
+  - R
+  - betting
+tags:
+  - data
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r error=FALSE, message=FALSE}
+library(tidyverse)
+library(lubridate)
+```
+
+
+## Repole Data
+
+There's a few R packages for sports data. Non, to my knowledge, focus on NFL football. More importantly, none are contain point spread and total data. 
+
+The first question we need to solve is where are we going to get the data. There's a few options.
+
+We can buy the data. [Armchair Analysis](http://armchairanalysis.com) is well worth the price. It goes far beyond scores and spreads. But it's overkill for our needs. [GamblingDB's](http://www.gamblingdbs.com) and [kostats](http://www.kostats.com) have what we're looking. But for our needs the data at <http://www.repole.com/sun4cast/data.html> will do. The data goes to 2013 (I'm not 100% sure but it looks like the owner of the site, Warren Repole, died before the 2014 season ended). There's score and odds data from 1978 to 2013 and the game stats data from 2000 to 2013. 
+
+For most people it's easier to download the archived files and manually unzip rather than doing it in R. But, speaking from experience, this is a bad idea. Ideally, you want every step along the process to be reproducible. Manually downloading and saving to a directory might seem easier now but there's a long list of issues that come up when you do it that way. Most probable, you'll forget the directory where you saved the files or delete it.  
+
+First, find the link for the NFL lines data. 
+
+```{r nfl_link}
+nfl_url <- 'http://www.repole.com/sun4cast/stats/nfllines.zip'
+```
+Next, we're going to download the files, unzip them into a temporary directory. Then we're going to get the file paths of the csv files.
+
+```{r temp_files}
+tmp_dir <- tempdir()
+tmp_file <- tempfile(tmpdir = tmp_dir, fileext = ".zip")
+download.file(nfl_url, tmp_file)
+f_names <- unzip(tmp_file, list = TRUE)
+files <- unzip(tmp_file, 
+               files = f_names$Name, 
+               exdir = tmp_dir, 
+               overwrite = TRUE)
+files <- files[grepl(x = files, pattern = '.csv')]
+
+# We can clean up by getting rid of some of the temp files
+rm(nfl_url, tmp_dir,f_names,tmp_file)
+```
+Now we have a bunch of csv files (one for each season). The plan is to pass each csv file to the `read_csv` function in the `readr` package, which loads with the `tidyverse` package. 
+
+### Read the csv files
+
+Now that we have the names of all the files we need to read them into R. Doing this one at a time by hand will be time consuming and error prone. Luckily, the `map` function applies a function to each element in a vector or list. This means we can pass the list of file names to the `read_csv` function. 
+
+Because the files should follow the same format (this is a big assumption that can get you in a lot of trouble but we'll stick with it for now) the column names should be the same and we can join them together to create one master file.
+
+The last part of the chain is to fix the column names of the original csv's into something more R friendly. For me that means no spaces and no periods. This isn't a rule but it makes it easier to work with. 
+
+```{r}
+# because of some issue with the data you need to set the `Total Line` column to the correct data type when reading it in.
+nfl_games <-
+  map(files,
+    ~ read_csv(.x,
+      col_types = cols(`Total Line` = col_double()))) %>%
+  bind_rows() %>% 
+  set_names(c('Date', 'Away', 'AwayScr',
+              'Home', 'HomeScr', 'Line', 
+              'Totalline'))
+
+glimpse(nfl_games)
+# del the temp csv files
+rm(files)
+```
+
+### Set the dates
+
+The `Date` column is as a character column. Use the `mdy` function from the `lubridate` package to convert the dates into datetime format. (We use `mdy` because the dates are in month/day/year format, if the dates were in year/month/day format but character strings we would use the `ymd` function instead.)
+
+```{r}
+nfl_games$Date <- mdy(nfl_games$Date)
+```
+
+Let's add a season column for easy filtering by year later. The NFL has a split year schedule (let's pretend that this dataset is more than the regular season for the time being). Usually the regular season is year `n` and the playoffs played in year `n + 1`. Because of this it's not possible to blindly extract the year from the date column for the season. We need to tell R that if the month is below a certain cutoff the season still belongs to the previous year.
+
+```{r}
+nfl_games <- nfl_games %>% 
+                    mutate(Seas = ifelse(month(Date) < 7,
+                                         year(Date) - 1, year(Date)))
+```
+
+### You're done... kinda
+
+You can export your dataset for reuse later. Export the `nfl_games` dataframe to csv or one of R's other formats for later use. 
+
+```{r}
+# nfl_games %>%
+#   write_rds('nfl_lines.rds')
+
+
+# look at a random sampling of the games in the dataset.
+nfl_games %>% 
+  sample_n(10) %>% 
+  knitr::kable()
+```
+
+Chances are you prefer a dataset with stats for each game along with the spreads and totals. For that we need to tackle the `nflstats` data. There's still plenty we can do with the limited data set.
+
+For example, we can look at how the game total for NFL matches has shifted over the last couple of decades.
+
+```{r}
+theme_set(theme_minimal())
+nfl_games %>%
+  filter(!is.na(Totalline)) %>% # remove the season with NA for totals
+  ggplot(aes(factor(Seas), Totalline)) +
+  geom_boxplot() +
+  labs(x = 'Season', y = 'Game Total') +
+  theme(axis.text.x  = element_text(
+        angle = 90,
+        vjust = 0.5,
+        size = 08)
+        )
+  
+```
+
+```{r}
+nfl_games %>% 
+  filter(!is.na(Totalline)) %>% 
+  ggplot(aes(x = factor(Seas), y = Totalline)) +
+  stat_summary(fun.data = mean_sdl, fun.args = list(mult=1),geom = 'ribbon', group = 1,
+               alpha = .4) +
+  stat_summary(fun.y = "mean", geom = "line", group = 1) +
+  labs(x = 'Season', y = 'Game Total') +
+  theme(axis.text.x  = element_text(
+        angle = 90,
+        vjust = 0.5,
+        size = 08)
+        )
+```
+
+Or, you can look plot margin of victory as a function of the game line to get an idea how close the point spread is on average to the final score.
+
+```{r} 
+nfl_games %>%
+  mutate(mov = HomeScr - AwayScr) %>% 
+  ggplot(aes(Line, mov)) +
+  geom_jitter(alpha = 0.1) +
+  geom_smooth(method = 'lm', se = FALSE) +
+  labs(x = "Point Spread", y = 'Margin of Victory')
+```
+
+### On the next episode...
+
+Next, we'll create a dataset out of the repole stat data which turns out to be more difficult than expected.
+
+## Update:
+
+In the past I've seen it said that the repole data wasn't reliable. Since I use other sources I never checked it out for myself. But after this post it became clear to me that those people were right. This dataset is missing games from seasons. The stats datasets has the wrong dates and that doesn't make me too confident in the rest of the data. Maybe down the road I'll put something up on fixing dirty unreliable data but that time isn't now. I've found another free source that I'll write about next time.

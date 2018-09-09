@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Betting on Questioning Certainty</title>
+    <link>/categories/betting/</link>
+    <description>Recent content in Betting on Questioning Certainty</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-us</language>
+    <lastBuildDate>Sat, 23 Jun 2018 00:00:00 +0000</lastBuildDate>
+    
+	<atom:link href="/categories/betting/index.xml" rel="self" type="application/rss+xml" />
+    
+    
+    <item>
+      <title>NFL Ratings via MLE</title>
+      <link>/2018/06/23/nfl-ratings-via-mle/</link>
+      <pubDate>Sat, 23 Jun 2018 00:00:00 +0000</pubDate>
+      
+      <guid>/2018/06/23/nfl-ratings-via-mle/</guid>
+      <description>Rating NFL Teams - Wayne Winston’s method In Wayne Winston’s book Mathletics he devotes a chapter to “Rating Sports Teams.” This technique is also covered in a couple of his other wonderful excel books. The technique is covered (less thorougly) in an older article avaiable on the Office site, titled “Using Solver to Rate Sports Teams”.
+Let’s implement a very simple version of this in R. I’m not an optimization expert.</description>
+    </item>
+    
+    <item>
+      <title>Creating an NFL point spread dataset</title>
+      <link>/2017/08/20/creating-an-nfl-point-spread-dataset/</link>
+      <pubDate>Sun, 20 Aug 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/08/20/creating-an-nfl-point-spread-dataset/</guid>
+      <description>library(tidyverse) library(lubridate) Repole Data There’s a few R packages for sports data. Non, to my knowledge, focus on NFL football. More importantly, none are contain point spread and total data.
+The first question we need to solve is where are we going to get the data. There’s a few options.
+We can buy the data. Armchair Analysis is well worth the price. It goes far beyond scores and spreads. But it’s overkill for our needs.</description>
+    </item>
+    
+    <item>
+      <title>Bad Bet: Do sports handicappers win? Part 1</title>
+      <link>/2017/05/12/bad-bet-do-sports-handicappers-win-part-1/</link>
+      <pubDate>Fri, 12 May 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/05/12/bad-bet-do-sports-handicappers-win-part-1/</guid>
+      <description>Most of this was written a while back, I wouldn’t code some of the simulations the same way now, but everything still works so it’s being left as is.
+The packages needed for examples below.
+library(gridExtra) library(tidyverse) theme_set(theme_minimal()) Selling Flap-Doddle Handicappers that sell their picks to the general public don’t win and are a bad bet for gamblers.
+note: the only long term documented exception to this rule I know of is RAS but as they say “one point does not a trend make.</description>
+    </item>
+    
+    <item>
+      <title>Bad Bet: Do sports handicappers win? Part 2</title>
+      <link>/2017/05/12/bad-bet-do-sports-handicappers-win-part-2/</link>
+      <pubDate>Fri, 12 May 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/05/12/bad-bet-do-sports-handicappers-win-part-2/</guid>
+      <description>So far we’ve been using a flat betting model where our bettors bet size never varies. While this might be easier to model it isn’t very realistic. We could go with something like the Kelly criterion to determine the bet size but we’ll opt for easy again and use “x” percentage of the bettor’s bankroll. This means instead of using an infinite bankroll where a player can never run out of money we will start with a fixed sum.</description>
+    </item>
+    
+    <item>
+      <title>Sports Betting Links to Data and Stats</title>
+      <link>/2017/05/12/sports-betting-links-to-data-and-stats/</link>
+      <pubDate>Fri, 12 May 2017 00:00:00 +0000</pubDate>
+      
+      <guid>/2017/05/12/sports-betting-links-to-data-and-stats/</guid>
+      <description>This post got decent traffic on the old blog. It’s the one article that made it to this new version. The title was “Sports Betting Data Downloads” (which wasn’t a good name in hindsight). A quarter of those links are dead, and there’s new material out there. Here’s an updated but pared down list.
+Data Pay For Data note: I don’t make a dime off recommending any of these
+Most of the links are US focused unless otherwise noted.</description>
+    </item>
+    
+  </channel>
+</rss>

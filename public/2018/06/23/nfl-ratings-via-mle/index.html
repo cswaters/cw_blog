@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="generator" content="Hugo 0.48" />
+
+
+<title>NFL Ratings via MLE - Questioning Certainty</title>
+<meta property="og:title" content="NFL Ratings via MLE - Questioning Certainty">
+
+
+
+  
+
+
+
+
+
+
+
+
+<link href='//cdn.bootcss.com/highlight.js/9.11.0/styles/tomorrow.min.css' rel='stylesheet' type='text/css' />
+
+
+
+<link rel="stylesheet" href="/css/fonts.css" media="all">
+<link rel="stylesheet" href="/css/main.css" media="all">
+
+
+
+  </head>
+  <body>
+    <div class="wrapper">
+      <header class="header">
+        <nav class="nav">
+  <a href="/" class="nav-logo">
+    <img src="/images/logo.jpeg"
+         width="50"
+         height="50"
+         alt="Logo">
+  </a>
+
+  <ul class="nav-links">
+    
+    <li><a href="/about/">About</a></li>
+    
+    <li><a href="/post/">Blog</a></li>
+    
+    <li><a href="https://github.com/cswaters">GitHub</a></li>
+    
+    <li><a href="/links/">Links</a></li>
+    
+    <li><a href="https://twitter.com/cory_waters">Twitter</a></li>
+    
+  </ul>
+</nav>
+
+      </header>
+
+
+<main class="content" role="main">
+
+  <article class="article">
+    
+    <span class="article-duration">13 min read</span>
+    
+
+    <h1 class="article-title">NFL Ratings via MLE</h1>
+
+    
+    <span class="article-date">2018/06/23</span>
+    
+
+    <div class="article-content">
+      <div id="rating-nfl-teams---wayne-winstons-method" class="section level2">
+<h2>Rating NFL Teams - Wayne Winston’s method</h2>
+<p>In <a href="https://www.amazon.com/Mathletics-Gamblers-Enthusiasts-Mathematics-Basketball/dp/0691154589">Wayne Winston’s book Mathletics</a> he devotes a chapter to “Rating Sports Teams.” This technique is also covered in a couple of his other wonderful excel books. The technique is covered (less thorougly) in an older article avaiable on the <a href="https://support.office.com/en-us/article/Using-Solver-to-rate-sports-teams-f063257d-1008-46b7-8811-c723c64a7651">Office site, titled “Using Solver to Rate Sports Teams”</a>.</p>
+<p>Let’s implement a very simple version of this in R. I’m not an optimization expert. After digging around the <a href="https://cran.r-project.org/web/views/Optimization.html">CRAN task view for optimization</a> I settled on the package <a href="https://cran.r-project.org/web/packages/alabama/index.html">alabama</a> package. Mainly because it was simple to use, nonlinear, and allowed for different types of constraints.</p>
+</div>
+<div id="creating-the-model" class="section level2">
+<h2>Creating the model</h2>
+<p>Read the article to get an idea of the procedure we’re going to use to come up with our ratings.</p>
+<p>Here’s a summary:</p>
+<ol style="list-style-type: decimal">
+<li>Get scores for this NFL season. We’re going to put them in a dataframe.</li>
+<li>Create a ratings vector for each team and enter a “guess” for each team’s rating. This doesn’t need to be close as the optimization will find the ratings that best explain this season’s results. To start, we’ll use 0 for each team.</li>
+<li>Create a “forecast” vector (or column). This forecast is the number of points we expect the home team to defeat the visitor by. (If this number is negative we expect the home team to lose. The formula we’re using for the forecast is <code>Home Edge + Home Team Rating - Away Team Rating</code>. <code>Home Edge</code> is the home field advantage. The standard NFL home field advantage is 3, but we’ll let the model determine the optimal value.</li>
+<li>Subtract the forecast from the actual score for each game. Call this the residual. To start square these results to avoid the negative residuals from canceling out positive ones.</li>
+<li>Minimize the sum of the squared residual vector.</li>
+</ol>
+<p>That’s the basic idea. We’ll fill in with more detail when it’s required.</p>
+<p>Let’s code it up.</p>
+</div>
+<div id="the-code" class="section level2">
+<h2>The code</h2>
+<p>We’re going to NFL scores for this season. NFL scores are some of the easiest sporting data to find. We’re going to use the data provided by Nate Silver’s <a href="https://fivethirtyeight.com">Fivethirtyeight.com</a>. They make this (and past) season’s scores available for their <a href="https://github.com/fivethirtyeight/nfl-elo-game">ELO project on github</a>.</p>
+<pre class="r"><code>library(tidyverse)
+nfl_scores_url &lt;- &#39;https://projects.fivethirtyeight.com/nfl-api/2017/nfl_games_2017.csv&#39;
+nfl &lt;- read_csv(nfl_scores_url)
+glimpse(nfl)</code></pre>
+<pre><code>## Observations: 267
+## Variables: 12
+## $ date      &lt;date&gt; 2017-09-07, 2017-09-10, 2017-09-10, 2017-09-10, 201...
+## $ season    &lt;int&gt; 2017, 2017, 2017, 2017, 2017, 2017, 2017, 2017, 2017...
+## $ neutral   &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0...
+## $ playoff   &lt;int&gt; 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0...
+## $ team1     &lt;chr&gt; &quot;NE&quot;, &quot;DET&quot;, &quot;CLE&quot;, &quot;CHI&quot;, &quot;CIN&quot;, &quot;BUF&quot;, &quot;TEN&quot;, &quot;HOU...
+## $ team2     &lt;chr&gt; &quot;KC&quot;, &quot;ARI&quot;, &quot;PIT&quot;, &quot;ATL&quot;, &quot;BAL&quot;, &quot;NYJ&quot;, &quot;OAK&quot;, &quot;JAX...
+## $ elo1      &lt;dbl&gt; 1687.395, 1500.732, 1335.768, 1383.935, 1515.970, 14...
+## $ elo2      &lt;dbl&gt; 1613.149, 1536.822, 1598.853, 1617.205, 1491.100, 14...
+## $ elo_prob1 &lt;dbl&gt; 0.6903093, 0.5415098, 0.2422707, 0.2751518, 0.626524...
+## $ score1    &lt;int&gt; 27, 35, 18, 17, 0, 21, 16, 7, 17, 46, 17, 3, 19, 29,...
+## $ score2    &lt;int&gt; 42, 23, 21, 23, 20, 12, 26, 29, 30, 9, 9, 23, 3, 19,...
+## $ result1   &lt;int&gt; 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0...</code></pre>
+<div id="cleaning-up-the-data" class="section level3">
+<h3>Cleaning up the data</h3>
+<p>There’s some housekeeping necassary before we start coding the model.</p>
+<ul>
+<li>All the games are in the 2017 season. Therefore no need for a season column.</li>
+<li>Get rid of the ELO rating and probability columns.</li>
+<li>There’s still weeks before the playoffs so that column isn’t important.</li>
+<li>Scores will do, no need for the result column.</li>
+</ul>
+<p>Games on neutral fields should alter the forecast formula, there’s no home field advantage.</p>
+<p>We’re keeping the following columns:</p>
+<ul>
+<li><code>date</code></li>
+<li><code>neutral</code></li>
+<li><code>team1</code> and <code>team2</code> but changing the names to <code>home</code> and <code>away</code></li>
+<li><code>score1</code> and <code>score2</code> but changing the names to <code>h_score</code> and <code>a_score</code></li>
+</ul>
+<p>The data doesn’t specify which team is home but a quick look at <a href="http://www.nfl.com/scores/2017/REG1">week one’s scores</a> show that <code>team1</code> and <code>score1</code> is the home team and score. Changing the column names isn’t necassary but you’ll be glad you did next season if you come back to the script. It’s one less thing to remember/look up.</p>
+<p>Add a margin of victory column for the home team. We’re going to need this later.</p>
+<pre class="r"><code>games &lt;- nfl %&gt;%  # remove future games
+  select(date, 
+         neutral, 
+         home = team1, 
+         away = team2, 
+         h_score = score1, 
+         a_score = score2) %&gt;% 
+  mutate(h_mov = h_score - a_score)</code></pre>
+<p>Let’s look at those neutral games.</p>
+<pre class="r"><code>paste(&quot;There was&quot;, 
+      nrow(games),
+      &quot;games played in 2017.&quot;,
+      sum(games$neutral),
+      &quot;of those games were played on a neutral field.&quot;)</code></pre>
+<pre><code>## [1] &quot;There was 267 games played in 2017. 6 of those games were played on a neutral field.&quot;</code></pre>
+<p>6 shouldn’t have a huge impact. It’s a little less than three percent of games. We’ll test that theory. First we’ll ignore neutral games.</p>
+<p>Create the basic forecast function. Remember the formula is <code>Home Edge + Home Team Rating - Away Team Rating</code>.</p>
+<pre class="r"><code>home_forecast &lt;- function(home_rating,
+                          visitor_rating,
+                          home_edge) {
+                          (home_edge + home_rating) - visitor_rating
+                          }</code></pre>
+</div>
+<div id="create-the-ratings-vector" class="section level3">
+<h3>Create the ratings vector</h3>
+<p>Create a vector consisting of every team in the NFL.</p>
+<pre class="r"><code>teams &lt;- sort(unique(games$home))
+length(teams) == 32 # there&#39;s 32 NFL teams</code></pre>
+<pre><code>## [1] TRUE</code></pre>
+<p>To start each team will be given a rating of zero. We’re also going to add an extra zero to represent the home field “edge” or advantage. Finally, add the team names to the ratings vector. This is for matching and updating ratings (discussed later).</p>
+<pre class="r"><code>ratings &lt;- rep(0,33)
+names(ratings) &lt;- c(teams, &#39;hfa&#39;) # hfa = home field advantage</code></pre>
+</div>
+<div id="the-loss-function" class="section level3">
+<h3>The loss function</h3>
+<p><code>constrOptim.nl</code> is the function from the <code>alabama</code> package that will perform the optimization. The function’s argument <code>fn</code> is a</p>
+<blockquote>
+<p>Nonlinear objective function that is to be optimized. A scalar function that takes a real vector as argument and returns a scalar that is the value of the function at that point.</p>
+</blockquote>
+<p>In other words, we need to create a function that sums the squared errors between the forecast and actual game scores. <code>constrOptim.nl</code> minimizes this number by trying out different team ratings. When a minimum is reached the algorithm will stop and we can access the team ratings that best explain the results so far this season.</p>
+<p>The function is simple. Pass in the team ratings as the argument. The forecast for each game is calculated via the <code>home_forecast</code> function. Each team’s rating is looked up by passing the <code>home</code> and <code>away</code> columns to ratings vector matching the <code>ratings</code> names to the value in the columns. The home field edge is matched up with the 33rd element in the <code>ratings</code> vector. Next, a error column named <code>resid</code> subtracts the forecast from the home team’s margin of victory, this value is squared. All of the squared errors are summed up in the <code>summarise</code> function in the column <code>sse</code>. That scalar value is returned. This returned value is the number <code>constrOptim.nl</code> will attempt to minimize.</p>
+<pre class="r"><code>sqr_err &lt;- function(ratings) {
+  games %&gt;%
+    mutate(forecast = home_forecast(ratings[home],
+                                    ratings[away],
+                                    ratings[33])) %&gt;% # 33 is the hfa
+    mutate(resid = (h_mov - forecast) ^ 2) %&gt;%
+    summarise(sse = sum(resid)) %&gt;% 
+    pull(sse)
+}</code></pre>
+</div>
+<div id="the-constraints" class="section level3">
+<h3>The constraints</h3>
+<p>Winston’s article suggests setting up a constraint in excel’s solver.</p>
+<blockquote>
+<p>It is convenient to make our average team rating equal to 0. A team with a positive rating is better than average and a team with a negative rating is worse than average.</p>
+</blockquote>
+<p><code>alabama</code>’s way of doing this feels a little akward to me but it works. We need the mean of the team ratings vector to equal zero when the optimization is complete. Remember that the <code>ratings</code> vector includes the hfa. That needs to be removed from the calculation.</p>
+<p><code>alabama</code> makes us place this constraint in a function. Because our constraint is that the team ratings must average to zero the function must be passed via the <code>heq</code> argument.</p>
+<blockquote>
+<p>a vector function specifying equality constraints such that heq[j] = 0 for all j</p>
+</blockquote>
+<p>The structure of this function is taken directly from the <code>alabama</code> documentation.</p>
+<pre class="r"><code>set_team_avg_zero &lt;- function(ratings){
+  h &lt;- rep(NA, 1)
+  h[1] &lt;- mean(ratings[-33])
+  h
+}
+
+set_team_avg_zero(ratings)</code></pre>
+<pre><code>## [1] 0</code></pre>
+<p>It’s not too tough to parse out what’s going on. Inside the function <code>h</code> is a vector of constraints. Assign the equality, i.e. this value on the right hand side of the assignment arrow must equal zero. Return the vector of constraints.</p>
+</div>
+<div id="run-the-model" class="section level3">
+<h3>Run the model</h3>
+<p>From here it’s easy. We need to pass <code>constrOptim.nl</code> three arguments.</p>
+<ol style="list-style-type: decimal">
+<li><code>par</code> starting vector of parameter values. The <code>ratings</code> vector.</li>
+<li><code>fn</code> function that is to be optimized. The <code>sqr_err</code> function.</li>
+<li><code>heq</code> a vector function specifying equality constraints. The <code>set_team_avg_zero</code> function.</li>
+</ol>
+<p>There’s a lot of message output with <code>constrOptim.nl</code>. To save space I’ll surpress it here. There’s nothing we can’t get out ourselves later.</p>
+<p><em>note: when you run this on your own computer it will take a minute.</em></p>
+<pre class="r"><code>mod &lt;- constrOptim.nl(par = ratings,
+                      fn = sqr_err,
+                      heq = set_team_avg_zero)</code></pre>
+<pre><code>## Max(abs(heq)):  0 
+## par:  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+## fval:  57845 
+## Max(abs(heq)):  0 
+## par:  -3.739912 5.530709 3.127966 -3.614134 4.59947 -1.398913 -5.23346 -11.22502 1.879033 -6.564302 2.517176 -2.100967 -6.650774 -10.26436 6.312582 3.015229 3.80242 8.054417 -6.125171 7.672764 8.848959 8.888341 -7.348521 -4.822529 -4.555789 11.29431 4.512591 1.932081 -2.860286 -1.191704 -3.477657 -1.168997 2.42332 
+## fval:  37908.19 
+## Max(abs(heq)):  0 
+## par:  -3.740024 5.531092 3.127815 -3.614036 4.599269 -1.398843 -5.233479 -11.22494 1.879091 -6.564324 2.517053 -2.100671 -6.650982 -10.26454 6.312504 3.015396 3.802148 8.054156 -6.125124 7.672806 8.848837 8.888701 -7.348596 -4.822646 -4.555892 11.29504 4.512417 1.932104 -2.859728 -1.1918 -3.477788 -1.169005 2.422375 
+## fval:  37908.19 
+## Max(abs(heq)):  0 
+## par:  -3.739989 5.531193 3.127841 -3.613976 4.599297 -1.398776 -5.233435 -11.22488 1.879155 -6.564277 2.517088 -2.100577 -6.650965 -10.26452 6.312535 3.015471 3.80216 8.054176 -6.125068 7.672867 8.84888 8.888802 -7.348554 -4.822613 -4.555858 11.29519 4.512442 1.932161 -2.859598 -1.191761 -3.477766 -1.168951 2.422994 
+## fval:  37908.2 
+## Max(abs(heq)):  0 
+## par:  -3.728332 5.543626 3.138803 -3.60245 4.612434 -1.385549 -5.222316 -11.2142 1.892434 -6.55246 2.529381 -2.087777 -6.640241 -10.25399 6.32355 3.026782 3.813952 8.066842 -6.113296 7.685165 8.86004 8.901966 -7.336243 -4.810754 -4.544154 11.30824 4.523639 1.944785 -2.847135 -1.179336 -3.466934 -1.156089 2.423113 
+## fval:  37908.19 
+## Max(abs(heq)):  0 
+## par:  -3.729004 5.543975 3.137915 -3.602824 4.61033 -1.387249 -5.223004 -11.21406 1.89079 -6.553455 2.528044 -2.088376 -6.641214 -10.25457 6.322661 3.026933 3.812267 8.064626 -6.114073 7.684592 8.859726 8.901119 -7.337181 -4.812108 -4.545251 11.30848 4.522354 1.943413 -2.846734 -1.180525 -3.467696 -1.157415 2.42284 
+## fval:  37908.19 
+## Max(abs(heq)):  0 
+## par:  -3.729084 5.543891 3.137837 -3.602903 4.610257 -1.387324 -5.223082 -11.21414 1.890715 -6.553533 2.527966 -2.088456 -6.641291 -10.25465 6.322583 3.026852 3.812192 8.064552 -6.114151 7.684512 8.859647 8.901039 -7.33726 -4.812184 -4.545328 11.30839 4.522278 1.943336 -2.846817 -1.180603 -3.467774 -1.157493 2.422885 
+## fval:  37908.19 
+## Max(abs(heq)):  0 
+## par:  -3.729083 5.543891 3.137838 -3.602902 4.610258 -1.387323 -5.223081 -11.21414 1.890716 -6.553531 2.527967 -2.088456 -6.64129 -10.25465 6.322584 3.026853 3.812193 8.064554 -6.11415 7.684512 8.859648 8.90104 -7.337259 -4.812183 -4.545327 11.30839 4.52228 1.943338 -2.846817 -1.180602 -3.467773 -1.157491 2.422892 
+## fval:  37908.19</code></pre>
+<p><code>mod</code> is a list of six items. The item we’re interested is <code>$par</code></p>
+<pre class="r"><code>(sse_ratings &lt;- mod$par)</code></pre>
+<pre><code>##        ARI        ATL        BAL        BUF        CAR        CHI 
+##  -3.729083   5.543891   3.137838  -3.602903   4.610258  -1.387323 
+##        CIN        CLE        DAL        DEN        DET         GB 
+##  -5.223082 -11.214136   1.890716  -6.553532   2.527967  -2.088456 
+##        HOU        IND        JAX         KC        LAC        LAR 
+##  -6.641290 -10.254650   6.322584   3.026852   3.812193   8.064554 
+##        MIA        MIN         NE         NO        NYG        NYJ 
+##  -6.114150   7.684512   8.859648   8.901039  -7.337259  -4.812183 
+##        OAK        PHI        PIT        SEA         SF         TB 
+##  -4.545327  11.308393   4.522279   1.943337  -2.846817  -1.180602 
+##        TEN        WSH        hfa 
+##  -3.467773  -1.157492   2.422892</code></pre>
+<p>These are our team ratings. According to the model this season’s home field advantage is 2.4228923 points. If we want to get the rankings we sort the vector is descending order.</p>
+<p>Here’s the top 10 teams in the NFL by our rating system.</p>
+<pre class="r"><code>tibble(teams = names(sse_ratings),
+       rankings = sse_ratings) %&gt;% 
+  arrange(desc(rankings)) %&gt;% 
+  head(10) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">teams</th>
+<th align="right">rankings</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">PHI</td>
+<td align="right">11.308393</td>
+</tr>
+<tr class="even">
+<td align="left">NO</td>
+<td align="right">8.901039</td>
+</tr>
+<tr class="odd">
+<td align="left">NE</td>
+<td align="right">8.859647</td>
+</tr>
+<tr class="even">
+<td align="left">LAR</td>
+<td align="right">8.064554</td>
+</tr>
+<tr class="odd">
+<td align="left">MIN</td>
+<td align="right">7.684512</td>
+</tr>
+<tr class="even">
+<td align="left">JAX</td>
+<td align="right">6.322584</td>
+</tr>
+<tr class="odd">
+<td align="left">ATL</td>
+<td align="right">5.543891</td>
+</tr>
+<tr class="even">
+<td align="left">CAR</td>
+<td align="right">4.610258</td>
+</tr>
+<tr class="odd">
+<td align="left">PIT</td>
+<td align="right">4.522279</td>
+</tr>
+<tr class="even">
+<td align="left">LAC</td>
+<td align="right">3.812193</td>
+</tr>
+</tbody>
+</table>
+<p>There’s a couple surprises. New Orleans is ranked second and Jaguars ranked lower than I’d expect but it’s standard looking top ten.</p>
+</div>
+<div id="what-about-the-neutral-games" class="section level3">
+<h3>What about the neutral games?</h3>
+<p>Remember we’re ignoring the fact that four of the games were played on a neutral field. Does accounting for neutral games improve the model?</p>
+<pre class="r"><code>paste(&quot;As of now the SSE is&quot;, round(mod$value,3))</code></pre>
+<pre><code>## [1] &quot;As of now the SSE is 37908.189&quot;</code></pre>
+<p>To factor in neutral games we need to alter the forecast function</p>
+<pre class="r"><code>home_forecast_neutral &lt;- function(home_rating,
+                                  visitor_rating,
+                                  home_edge,
+                                  is_neutral) {
+                                  ifelse(is_neutral,
+                                  home_rating - visitor_rating,
+                                  (home_edge + home_rating) - visitor_rating)
+                                  }</code></pre>
+<p>The code above checks if a game is neutral. If it is the home edge is removed from the formula otherwise it’s the same as before.</p>
+<p>We also need to change the loss function.</p>
+<pre class="r"><code>sqr_err_neutral &lt;- function(ratings) {
+  games %&gt;%
+    mutate(forecast = home_forecast_neutral(ratings[home],
+                                    ratings[away],
+                                    ratings[33],
+                                    neutral)) %&gt;% # 33 is the hfa
+    mutate(resid = (h_mov - forecast) ^ 2) %&gt;%
+    summarise(sse = sum(resid)) %&gt;% 
+    pull(sse)
+}</code></pre>
+<p>Let’s create a new ratings vector.</p>
+<pre class="r"><code>neutral_ratings &lt;- rep(0,33)
+names(neutral_ratings) &lt;- c(teams, &#39;hfa&#39;) # hfa = home field advantage</code></pre>
+<p>Now we can re-run the model.</p>
+<pre class="r"><code>mod_neutral &lt;- constrOptim.nl(par = neutral_ratings,
+                      fn = sqr_err_neutral,
+                      heq = set_team_avg_zero)</code></pre>
+<pre><code>## Max(abs(heq)):  0 
+## par:  0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+## fval:  57845 
+## Max(abs(heq)):  0 
+## par:  -3.878619 5.490496 3.011734 -3.577573 4.54241 -1.461467 -5.232393 -11.09142 1.869775 -6.521021 2.453523 -2.154354 -6.620949 -10.23499 6.452445 3.063151 3.857934 8.159959 -5.966289 7.495896 8.891201 8.731761 -7.358546 -4.776203 -4.387809 11.17301 4.523442 1.924693 -2.865034 -1.237988 -3.442254 -1.190472 2.351891 
+## fval:  38036.65 
+## Max(abs(heq)):  0 
+## par:  -3.878587 5.490433 3.011716 -3.577596 4.542553 -1.461402 -5.232406 -11.09145 1.869845 -6.521017 2.453541 -2.154422 -6.62097 -10.23502 6.45239 3.063147 3.857961 8.15999 -5.9663 7.495929 8.891191 8.731695 -7.358511 -4.776156 -4.387834 11.17289 4.523509 1.924765 -2.86509 -1.23797 -3.442219 -1.190479 2.350922 
+## fval:  38036.65 
+## Max(abs(heq)):  0 
+## par:  -3.878173 5.490359 3.011895 -3.577468 4.543459 -1.460842 -5.232216 -11.09135 1.870424 -6.520747 2.453879 -2.154483 -6.620823 -10.23487 6.452355 3.063396 3.858339 8.160388 -5.966114 7.496352 8.891439 8.731661 -7.358092 -4.775683 -4.387716 11.17262 4.524089 1.925356 -2.865099 -1.237631 -3.441839 -1.190261 2.350125 
+## fval:  38036.65 
+## Max(abs(heq)):  0 
+## par:  -3.86709 5.500637 3.021763 -3.567048 4.558185 -1.448129 -5.222364 -11.08219 1.882855 -6.509544 2.465994 -2.144365 -6.611945 -10.22583 6.46117 3.074195 3.869571 8.171454 -5.954942 7.507916 8.90131 8.743823 -7.346717 -4.763121 -4.377687 11.1832 4.536333 1.937581 -2.855786 -1.225061 -3.431207 -1.179713 2.350641 
+## fval:  38036.65 
+## Max(abs(heq)):  0 
+## par:  -3.867324 5.500632 3.021587 -3.56725 4.557424 -1.448592 -5.222524 -11.08218 1.882378 -6.50993 2.465604 -2.144424 -6.611978 -10.2259 6.461186 3.073955 3.869234 8.171169 -5.955261 7.507708 8.901435 8.743291 -7.346923 -4.76368 -4.377818 11.18283 4.535688 1.937058 -2.855759 -1.225486 -3.431597 -1.179843 2.350959 
+## fval:  38036.65 
+## Max(abs(heq)):  0 
+## par:  -3.867149 5.500865 3.021784 -3.567063 4.557431 -1.448492 -5.222321 -11.08193 1.882479 -6.509801 2.465726 -2.144203 -6.611728 -10.22566 6.461445 3.074124 3.869381 8.171333 -5.955115 7.507882 8.901703 8.743364 -7.346743 -4.763606 -4.377609 11.18295 4.535747 1.937151 -2.855504 -1.225379 -3.431452 -1.179639 2.350584 
+## fval:  38036.65 
+## Max(abs(heq)):  0 
+## par:  -3.867147 5.500867 3.021786 -3.567062 4.55743 -1.448492 -5.222319 -11.08192 1.88248 -6.5098 2.465727 -2.144201 -6.611725 -10.22566 6.461447 3.074126 3.869382 8.171334 -5.955114 7.507883 8.901707 8.743364 -7.346741 -4.763606 -4.377607 11.18295 4.535747 1.937151 -2.855501 -1.225378 -3.43145 -1.179637 2.350588 
+## fval:  38036.65 
+## Max(abs(heq)):  0 
+## par:  -3.867147 5.500866 3.021786 -3.567062 4.557429 -1.448492 -5.22232 -11.08193 1.882479 -6.509801 2.465726 -2.144201 -6.611726 -10.22566 6.461447 3.074125 3.869382 8.171334 -5.955114 7.507883 8.901706 8.743364 -7.346742 -4.763606 -4.377608 11.18295 4.535746 1.93715 -2.855501 -1.225379 -3.431451 -1.179637 2.350588 
+## fval:  38036.65</code></pre>
+<p>The differnce between the two models isn’t worth the extra effort IMO.</p>
+<pre class="r"><code>tibble(with_neutral_mod = mod_neutral$value,
+       without_netural_mod = mod$value) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">with_neutral_mod</th>
+<th align="right">without_netural_mod</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">38036.65</td>
+<td align="right">37908.19</td>
+</tr>
+</tbody>
+</table>
+<p>I’ll leave it up to you to see if there’s substanial differences in ranking.</p>
+</div>
+<div id="point-spreads" class="section level3">
+<h3>Point Spreads</h3>
+<p>While it’s interesting to compare results to other rating systems we’re really interested in predictions the model makes.</p>
+<p>To do this we’ll create a function that predicts the home team’s margin of victory by sticking the <code>home_forecast</code> function inside another function.</p>
+<pre class="r"><code>get_pointspred &lt;- function(ratings, home, away){
+  home_forecast(ratings[home],
+                ratings[away],
+                ratings[&#39;hfa&#39;]) %&gt;% 
+    round(2)
+}</code></pre>
+<p>Below is an example how you could use the ratings to predict point spreads. Obviously you want to predict games in the future but it works for an illustration.</p>
+<pre class="r"><code>nfl %&gt;% 
+  filter(date == &#39;2018-02-04&#39;) %&gt;% 
+  select(date, home = team1, away = team2) %&gt;% 
+  mutate(spread = get_pointspred(mod$par, home, away)) %&gt;% 
+  kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">date</th>
+<th align="left">home</th>
+<th align="left">away</th>
+<th align="right">spread</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">2018-02-04</td>
+<td align="left">NE</td>
+<td align="left">PHI</td>
+<td align="right">-0.03</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+
+    </div>
+  </article>
+
+  
+<section id="comments">
+  <div id="disqus_thread"></div>
+  <script>
+  var disqus_config = function () {
+  
+  };
+  (function() {
+    var inIFrame = function() {
+      var iframe = true;
+      try { iframe = window.self !== window.top; } catch (e) {}
+      return iframe;
+    };
+    if (inIFrame()) return;
+    var d = document, s = d.createElement('script');
+    s.src = '//corywaters.disqus.com/embed.js'; s.async = true;
+    s.setAttribute('data-timestamp', +new Date());
+    (d.head || d.body).appendChild(s);
+  })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+</section>
+
+
+
+</main>
+
+      <footer class="footer">
+        <ul class="footer-links">
+          <li>
+            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
+          </li>
+          <li>
+            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
+          </li>
+        </ul>
+      </footer>
+
+    </div>
+    
+
+
+
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/highlight.min.js"></script>
+
+
+
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/r.min.js"></script>
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/yaml.min.js"></script>
+<script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
+
+
+
+    
+<script src="/js/math-code.js"></script>
+<script async src="//cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
+
+
+    
+<script type="application/javascript">
+var doNotTrack = false;
+if (!doNotTrack) {
+	(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+	(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+	m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+	})(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+	ga('create', 'UA-107296047-1', 'auto');
+	
+	ga('send', 'pageview');
+}
+</script>
+
+  </body>
+</html>
+

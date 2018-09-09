@@ -1,0 +1,115 @@
+---
+title: 'Bad Bet: Do sports handicappers win? Part 2'
+author: cw
+date: '2017-05-12'
+slug: bad-bet-do-sports-handicappers-win-part-2
+categories:
+  - betting
+  - R
+tags:
+  - simulation
+description: 'Follow up to last post with a variable bet size model'
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(gridExtra)
+library(tidyverse)
+theme_set(theme_minimal())
+```
+
+
+So far we've been using a flat betting model where our bettors bet size never varies. While this might be easier to model it isn't very realistic. We could go with something like the [Kelly criterion](https://en.wikipedia.org/wiki/Kelly_criterion) to determine the bet size but we'll opt for easy again and use "x" percentage of the bettor's bankroll. This means instead of using an infinite bankroll where a player can never run out of money we will start with a fixed sum. The bankroll size will determine the bet amount
+
+```{r bettor_bankroll_sim}
+bettor_bankroll_sim <- function(bets=500, bet_size_p=0.05, bank_roll=1000, winPct=.5) {
+  results <- rep(0, bets)
+  for (i in 1:length(results)) {
+    bet <- bet_size_p * bank_roll
+    bet <- sample(c(bet, (bet+(bet*.1))*-1),1, prob = c(winPct, (1-winPct)))
+    bank_roll <- sum(bank_roll, bet)
+    results[i] <- bank_roll
+  }
+  results
+}
+
+bettor_bankroll_sim(500, .05, 1000) %>% head()
+```
+```{r}
+df <- bind_cols(as_data_frame(replicate(500, bettor_bankroll_sim())))
+names(df) <- map_chr(1:500, function(.x) {
+  paste0("bettor_", .x)
+})
+sum(tail(df, 1) > 1000)
+```
+
+The last bit of code gets the number of bettors that, after 500 bets, have a higher bank roll than they started with. That's out of 500 bettors, hitting 50% winners. Let's look at how 55% winners do.
+
+```{r bettors_55pct}
+df <-
+  bind_cols(as_data_frame(replicate(500, bettor_bankroll_sim(winPct = .55))))
+names(df) <- map_chr(1:500, function(.x) {
+  paste0("bettor_", .x)
+})
+sum(tail(df, 1) > 1000)
+```
+
+Let's take a look at the average balance of a 55% winner after 500 bets and a bet size equal to 5% of the bettor's bankroll.
+
+```{r bettor_end_balance}
+df %>% 
+  tail(1) %>% 
+  rowMeans()
+```
+
+Now let's plot it.
+
+```{r bettor_55_dist}
+df %>% 
+  tail(1) %>% 
+  gather(bettor, balance, 1:500) %>% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = "azure3", col="white", binwidth = 1500) +
+    scale_x_continuous(labels = scales::dollar) +
+    theme_minimal()
+  
+```
+
+Plotting the final balance of each bettor gives a striking visual of how profitable being a 55% winner can be. This is only after 500 bets starting with $1,000. Let's do something silly and see what it looks like when we start hitting 60% and we will bump the number of bets up to 1,000.
+
+```{r bettor_60pct}
+df <-
+  bind_cols(as_data_frame(replicate(
+    500, bettor_bankroll_sim(bets = 1000, winPct = .60)
+  )))
+
+df %>% 
+  tail(1) %>% 
+  gather(bettor, balance, 1:500) %>% 
+  ggplot(., aes(balance)) +
+    geom_histogram(fill = "azure3", col="white") +
+    scale_x_continuous(labels = scales::dollar) +
+    theme_minimal()
+```
+
+You're not seeing that wrong. The plot shows the majority of bars between $0 and $20 million dollars. We purposely didn't set the binwidth in order not to spoil the surprise. Since that's such an extreme spread let's look at the how the average bettor did after 1,000 bets.
+
+```{r bettor_60pct_balance}
+df %>% 
+  tail(1) %>% 
+  rowMeans()
+```
+
+The mean is approx 2.7 million dollars. Take that in... On average if you hit 60% of your bets, betting into -110 lines, while betting 5% of your bankroll after starting with $1,000, you will end up 2.7 million dollars richer after 1,000 bets. 
+
+How does the best and worst bettors' fare?
+
+```{r bettor_worst}
+df %>% 
+  tail(1) %>% 
+  t() %>% 
+  summary()
+```
+
+The bettor with the worst 'luck' ends up 12x his starting balance while the bettor with the best outcome is sitting on roughly 64 million dollars.
+
