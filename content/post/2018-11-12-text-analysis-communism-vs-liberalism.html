@@ -1,0 +1,325 @@
+---
+title: Text Analysis Communism vs Liberalism
+author: Cory Waters
+date: '2018-11-12'
+slug: text-analysis-communism-vs-liberalism
+categories:
+  - R
+tags:
+  - text
+---
+
+<script src="/rmarkdown-libs/htmlwidgets/htmlwidgets.js"></script>
+<link href="/rmarkdown-libs/wordcloud2/wordcloud.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/wordcloud2/wordcloud2-all.js"></script>
+<script src="/rmarkdown-libs/wordcloud2/hover.js"></script>
+<script src="/rmarkdown-libs/wordcloud2-binding/wordcloud2.js"></script>
+
+
+<div id="text-analysis-of-political-tracts" class="section level2">
+<h2>Text Analysis of Political Tracts</h2>
+<p>The concepts and programming style in this post are inspired by the book <a href="https://www.tidytextmining.com">“Text Mining in R”</a>.</p>
+<p>Most text mining tutorials you’ll come across on the web use modern (as in the last year to decade) sources. Way too many use twitter data. There might be value in sampling the “collective conscious” of the twitter-verse (I’m skeptical) but analysis of documents that have stood the test of time seems a more worthy endeavor.</p>
+<p>Capitalism and Communism are the two most important political systems of the last hundred years. Each has its own canon of influential books. Defining the <em>most</em> influential isn’t the purpose of this post. For communism I’m selecting “The Communist Manifesto” by Karl Marx and Friedrich Engels. An argument can be made that “Das Kapital” is more influential, but it’s more technical and not suited for a general audience (IMO). For capitalism there’s a consensus that “An Inquiry into the Nature and Causes of the Wealth of Nations” by Adam Smith is the definitive work.</p>
+<p>Both of these works are over 150 years old. The “Wealth of Nations” came out the same year as the American Revolution making it close to 250 years old. <a href="https://en.wikipedia.org/wiki/The_Communist_Manifesto">According to Wikipedia</a>, “The Communist Manifesto” was published in 1848 and was in the German language. Frederick Engels writes in the preface to a later edition that it was translated to English as early as 1850 but the “official” translation (the translation Engels approved of) <a href="https://www.marxists.org/archive/marx/works/1848/communist-manifesto/preface.htm">wasn’t published till 1888</a>.</p>
+<p>Since both works are in the public domain they’re easily accessed via <a href="https://www.gutenberg.org">Project Gutenberg</a>. One of the great things about the <code>R</code> language is the number packages available. If you have an idea for a package chances are someone else has already created it and posted it online. That’s the case with the <code>gutenbergr</code> package. The documentation states that the <code>gutenberger</code> package lets users <a href="https://cran.r-project.org/web/packages/gutenbergr/vignettes/intro.html">“Search and download public domain texts from Project Gutenberg”</a>.</p>
+<p>Below we’ll use the <code>gutenbergr</code> to download both books and load them into data frames for further manipulation. We’re also going to use the <code>tidytext</code> and <code>wordcloud2</code> packages so you’ll need to download and install them both if they aren’t installed on your system.</p>
+<p>Some notes about the process below.</p>
+<ul>
+<li><p>To download a book via project <code>gutenberger</code> we need to know the book’s id number. There’s a few ways to obtain this. The easiest is via the <code>gutenberg_metadata</code> data frame loaded with the package. <code>gutenberg_metadata</code> can be filtered by title, author, etc. We can also use Google and copy the id from the text’s webpage.</p></li>
+<li><p>Some books are posted multiple times. Filtering on the title might result in a vector of different id numbers. Usually we would investigate to make sure we’re working with the correct edition (or book in some cases). In the example below we’re grabbing the first id and using it.</p></li>
+</ul>
+<pre class="r"><code>### Load Packages ###
+library(tidyverse) # access to dplyr/tidyr/stringr functions</code></pre>
+<pre><code>## ── Attaching packages ─────────────────────────────────────── tidyverse 1.2.1 ──</code></pre>
+<pre><code>## ✔ ggplot2 3.0.0.9000     ✔ purrr   0.2.5     
+## ✔ tibble  1.4.2          ✔ dplyr   0.7.7     
+## ✔ tidyr   0.8.1          ✔ stringr 1.3.1     
+## ✔ readr   1.1.1          ✔ forcats 0.3.0</code></pre>
+<pre><code>## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()</code></pre>
+<pre class="r"><code>library(gutenbergr)
+library(tidytext) # text analysis functions
+library(wordcloud2) # visualize text
+####################
+
+### Download books ###
+cm_id &lt;- gutenberg_metadata %&gt;% 
+  filter(title == &#39;The Communist Manifesto&#39;) %&gt;% 
+  pull(gutenberg_id)
+
+won_id &lt;- gutenberg_metadata %&gt;% 
+  filter(title == &#39;An Inquiry into the Nature and Causes of the Wealth of Nations&#39;) %&gt;% 
+  pull(gutenberg_id)
+
+# length(cm_id) # 2
+cm_id &lt;- cm_id[1]
+# length(won_id)
+
+cm &lt;- gutenberg_download(cm_id[1])</code></pre>
+<pre><code>## Determining mirror for Project Gutenberg from http://www.gutenberg.org/robot/harvest</code></pre>
+<pre><code>## Using mirror http://aleph.gutenberg.org</code></pre>
+<pre class="r"><code>won &lt;- gutenberg_download(won_id)</code></pre>
+<div id="get-summary-of-books" class="section level3">
+<h3>Get Summary of Books</h3>
+<p>A quick <code>glimpse</code> of “The Communist Manifesto”.</p>
+<pre class="r"><code>glimpse(cm)</code></pre>
+<pre><code>## Observations: 1,496
+## Variables: 2
+## $ gutenberg_id &lt;int&gt; 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 61, 6...
+## $ text         &lt;chr&gt; &quot;Transcribed by Allen Lutins with assistance from...</code></pre>
+<p>And a <code>glimpse</code> of “An Inquiry into the Nature and Causes of the Wealth of Nations.”</p>
+<pre class="r"><code>glimpse(won)</code></pre>
+<pre><code>## Observations: 35,202
+## Variables: 2
+## $ gutenberg_id &lt;int&gt; 3300, 3300, 3300, 3300, 3300, 3300, 3300, 3300, 3...
+## $ text         &lt;chr&gt; &quot;AN INQUIRY INTO THE NATURE AND CAUSES OF THE WEA...</code></pre>
+<pre class="r"><code>nrow(won) / nrow(cm)</code></pre>
+<pre><code>## [1] 23.53075</code></pre>
+<p>“Wealth of Nations” is a huge book compared to the “Communist Manifesto.” Almost 23 lines of Smith for every line of Marx &amp; Engels. For now we’ll ignore the size discrepancy.</p>
+</div>
+<div id="cleaning-up-the-books" class="section level3">
+<h3>Cleaning up the books</h3>
+<p>Often, books from Project Gutenberg contain blank lines and metadata in the first few lines.</p>
+<pre class="r"><code>cm %&gt;% 
+  head(10)</code></pre>
+<pre><code>## # A tibble: 10 x 2
+##    gutenberg_id text                                                      
+##           &lt;int&gt; &lt;chr&gt;                                                     
+##  1           61 Transcribed by Allen Lutins with assistance from Jim Tarz…
+##  2           61 &quot;&quot;                                                        
+##  3           61 &quot;&quot;                                                        
+##  4           61 &quot;&quot;                                                        
+##  5           61 &quot;&quot;                                                        
+##  6           61 &quot;&quot;                                                        
+##  7           61 &quot;&quot;                                                        
+##  8           61 &quot;&quot;                                                        
+##  9           61 &quot;&quot;                                                        
+## 10           61 MANIFESTO OF THE COMMUNIST PARTY</code></pre>
+<p>In this case it’s the first three lines. Another thing we’re going to want to do for later analysis is add the line number.</p>
+<pre class="r"><code>cm &lt;- cm %&gt;% 
+  filter(text != &#39;&#39;) %&gt;% 
+  slice(-(1:3))
+
+cm &lt;- cm %&gt;% 
+  mutate(line = row_number(gutenberg_id))
+
+cm %&gt;% 
+  head(10)</code></pre>
+<pre><code>## # A tibble: 10 x 3
+##    gutenberg_id text                                                  line
+##           &lt;int&gt; &lt;chr&gt;                                                &lt;int&gt;
+##  1           61 A spectre is haunting Europe--the spectre of Commun…     1
+##  2           61 All the Powers of old Europe have entered into a ho…     2
+##  3           61 exorcise this spectre: Pope and Czar, Metternich an…     3
+##  4           61 French Radicals and German police-spies.                 4
+##  5           61 Where is the party in opposition that has not been …     5
+##  6           61 Communistic by its opponents in power?  Where is th…     6
+##  7           61 that has not hurled back the branding reproach of C…     7
+##  8           61 against the more advanced opposition parties, as we…     8
+##  9           61 its reactionary adversaries?                             9
+## 10           61 Two things result from this fact.                       10</code></pre>
+<p>We can chop off the first five lines of “Wealth of Nations”</p>
+<pre class="r"><code>won &lt;- won %&gt;% 
+  slice(-(1:5)) %&gt;% 
+  filter(text != &#39;&#39;) %&gt;% 
+  mutate(line = row_number(gutenberg_id))
+
+won %&gt;% 
+  head(10)</code></pre>
+<pre><code>## # A tibble: 10 x 3
+##    gutenberg_id text                                                  line
+##           &lt;int&gt; &lt;chr&gt;                                                &lt;int&gt;
+##  1         3300 INTRODUCTION AND PLAN OF THE WORK.                       1
+##  2         3300 The annual labour of every nation is the fund which…     2
+##  3         3300 it with all the necessaries and conveniencies of li…     3
+##  4         3300 consumes, and which consist always either in the im…     4
+##  5         3300 of that labour, or in what is purchased with that p…     5
+##  6         3300 nations.                                                 6
+##  7         3300 According, therefore, as this produce, or what is p…     7
+##  8         3300 bears a greater or smaller proportion to the number…     8
+##  9         3300 to consume it, the nation will be better or worse s…     9
+## 10         3300 necessaries and conveniencies for which it has occa…    10</code></pre>
+</div>
+<div id="the-obligatory-word-cloud" class="section level3">
+<h3>The obligatory word cloud</h3>
+<p>No text analysis would be complete without a word cloud of the most common words. I’m not a huge fan of word clouds but I’m in the minority it seems. Let’s do two word clouds of the 300 most frequent words in each text (after stop words removed).</p>
+<div id="removing-stop-words" class="section level4">
+<h4>Removing “stop words”</h4>
+<p>I can’t find a concise definition of stop words. Wikipedia says, “In computing, stop words are words which are filtered out before or after processing of natural language data.” Which words get filtered out is up to who makes the list. In short, stop words are the most common words “a”, “and”, “the”, etc. that convey no meaning. The <code>tidytext</code> package defaults to the “snowball” lexicon of stop words. It also supports any of the lexicons in the <code>stopwords</code> package.</p>
+<pre class="r"><code>stopwords::stopwords_getsources()</code></pre>
+<pre><code>## [1] &quot;snowball&quot;      &quot;stopwords-iso&quot; &quot;misc&quot;          &quot;smart&quot;</code></pre>
+<p>Instead of using the <code>get_stopwords</code> function we’re going to use the preloaded <code>stop_words</code> data frame that loads with <code>tidytext</code>. To remove the stop words from a book we need to:</p>
+<ol style="list-style-type: decimal">
+<li>Tokenize the words in the work. This is easily done via the <code>unnest_tokens</code> function.</li>
+<li><code>anti_join</code> the <code>stop_words</code> data frame to the tokenized book data frame. An <code>anti_join</code> removes the words from the first data frame that appear in both data frames.</li>
+</ol>
+<pre class="r"><code># a python lambda-function-esque way of writing a function in R
+token_remove_stopwords &lt;- . %&gt;% 
+  unnest_tokens(input = &#39;text&#39;,
+                output = &#39;word&#39;) %&gt;% 
+  anti_join(stop_words)
+
+cm_token &lt;- cm %&gt;% 
+  token_remove_stopwords()</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<pre class="r"><code>won_token &lt;- won %&gt;% 
+  token_remove_stopwords()</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+</div>
+</div>
+<div id="group-by-most-frequent" class="section level3">
+<h3>Group by most frequent</h3>
+<p>Next we’ll group by <code>word</code>, determine the frequency, sort by most frequent and save the top 300 most frequent words as a separate data frame. The “Wealth of Nations” has an issue, Smith uses lots of numbers in the book. We don’t want 1’s or some other number taking up space in the word cloud. They don’t contain any information. So we’ll do a small hack to avoid that problem.</p>
+<pre class="r"><code>top_300_token &lt;- . %&gt;% 
+  count(word, sort = TRUE) %&gt;% 
+  head(300)
+
+top_300_cm &lt;- cm_token %&gt;% 
+  top_300_token()
+
+top_300_won &lt;- won_token %&gt;%
+  mutate(nc = nchar(word)) %&gt;% # count the number of characters in each word
+  filter(nc &gt; 2) %&gt;% # &quot;words&quot; of 3 containing three characters or more 
+  top_300_token()</code></pre>
+</div>
+<div id="create-word-cloud" class="section level3">
+<h3>Create word cloud</h3>
+<p>Now we have everything we need to create our word clouds. We’ve already loaded the <code>wordcloud2</code> package. The package has lots of options but we’ll keep it simple.</p>
+<div id="the-communist-manifesto-word-cloud" class="section level4">
+<h4>The Communist Manifesto Word Cloud</h4>
+<pre class="r"><code>wordcloud2(top_300_cm, 
+           color = &#39;#FF2400&#39;, # Scarlet
+           shape = &#39;star&#39; # communists love their stars
+             )</code></pre>
+<div id="htmlwidget-1" style="width:672px;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-1">{"x":{"word":["class","bourgeois","bourgeoisie","society","proletariat","property","production","conditions","modern","labour","social","existence","socialism","industry","means","political","development","feudal","form","relations","capital","communists","classes","german","abolition","french","movement","revolutionary","character","ideas","struggle","historical","revolution","existing","proletarians","time","common","country","industrial","national","ruling","wage","antagonisms","communism","family","middle","petty","action","countries","exploitation","germany","individual","literature","power","proportion","world","competition","developed","forces","free","freedom","reactionary","commerce","communist","france","hands","history","instruments","life","private","products","ages","condition","exchange","machinery","material","nation","nations","past","productive","section","system","word","crises","education","england","fight","hand","mere","mode","parties","population","proletarian","socialist","women","workers","ancient","appropriation","created","i.e","increase","labourers","market","party","personal","philosophical","practical","relation","supremacy","true","agriculture","antagonism","aristocracy","based","bring","buying","called","contest","criticism","disappearance","earlier","elements","forms","future","independent","industries","labourer","law","opposition","public","selling","set","sway","systems","trade","union","universal","words","absolute","america","carried","century","change","civilisation","communistic","community","compelled","constantly","destroyed","division","economic","emancipation","expression","eyes","fantastic","foundation","half","increases","individuality","introduce","lose","monarchy","necessarily","openly","peasant","period","position","radical","real","religious","rule","science","struggles","weapons","1","advanced","aims","association","asunder","attain","battle","benefit","bound","children","communication","completely","concentrated","conservative","contrary","converted","creates","critical","culture","daily","demands","develops","direct","directly","dissolution","epoch","established","eternal","factory","force","governments","ground","immense","intellectual","land","laws","majority","man's","manufacture","manufacturing","markets","mass","masters","measures","moment","movements","navigation","nay","organisation","owing","partly","people","previous","progress","question","rising","single","socialists","spectre","status","subsistence","swept","times","undeveloped","utopian","vanish","views","wages","war","wrote","2","abolish","accompanied","acquire","acquired","advance","advantage","age","air","appeal","appropriating","barbarian","bare","beneath","breaks","centralisation","christian","civilised","collisions","combination","compels","complement","complete","conscious","constant","constitution","contact","cost","death","dependent","desire","destroy","disappear","distinction","distinctive","domain","due","effects","enemies","entire","epidemic","epochs","essential","exploited","express","fall","feature","finally","formation","formed","fresh","front","gain","government","growing","guild"],"freq":[102,100,91,70,63,56,51,50,41,37,37,32,30,29,29,28,26,25,25,25,24,24,21,21,20,20,19,19,17,17,17,16,16,15,15,15,14,14,14,14,14,14,13,13,13,13,13,12,12,12,12,12,12,12,12,12,11,11,11,11,11,11,10,10,10,10,10,10,10,10,10,9,9,9,9,9,9,9,9,9,9,9,9,8,8,8,8,8,8,8,8,8,8,8,8,8,7,7,7,7,7,7,7,7,7,7,7,7,7,7,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3],"fontFamily":"Segoe UI","fontWeight":"bold","color":"#FF2400","minSize":0,"weightFactor":1.76470588235294,"backgroundColor":"white","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"star","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+</div>
+<div id="the-wealth-of-nations-word-cloud" class="section level4">
+<h4>The Wealth of Nations Word Cloud</h4>
+<pre class="r"><code>wordcloud2(top_300_won, 
+           color = &#39;#012169&#39;, # Smith is from Scotland
+           shape = &#39;diamond&#39;
+             )</code></pre>
+<div id="htmlwidget-2" style="width:672px;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-2">{"x":{"word":["price","country","labour","trade","produce","quantity","people","money","land","revenue","silver","capital","time","stock","market","countries","expense","tax","gold","rent","foreign","proportion","profit","employed","corn","industry","europe","public","england","manner","frequently","britain","necessarily","wages","times","society","real","equal","increase","pay","colonies","paid","government","annual","taxes","manufactures","commodities","common","altogether","home","considerable","duties","consumption","account","naturally","bank","demand","improvement","exportation","ordinary","profits","shillings","commonly","cent","commerce","company","called","nations","supposed","france","natural","coin","employment","law","occasion","ancient","sufficient","twenty","means","purchase","hundred","carried","importation","rate","afford","pounds","war","america","established","sort","person","private","merchants","seldom","exchange","sum","system","monopoly","obliged","bounty","duty","proper","rise","productive","fall","free","scotland","consequence","sovereign","wealth","inhabitants","lands","commodity","principal","cultivation","subsistence","ten","thousand","landlord","merchant","business","century","raise","metals","mines","poor","advantage","employ","nature","considered","degree","maintain","scarce","contrary","circumstances","half","materials","occasions","supply","advantageous","cattle","deal","sell","found","payment","subject","surplus","gradually","maintenance","manufacturers","nation","authority","british","effect","annually","english","life","average","farmer","rude","workmen","london","brought","competition","till","weight","manufacture","paper","extraordinary","support","agriculture","amount","imposed","equally","power","cheaper","laws","buy","colony","likewise","rich","east","house","sorts","world","town","fund","share","body","distant","provinces","capitals","inferior","measure","easily","empire","employments","european","food","wool","worth","debt","french","king","continually","fortune","trades","peace","provisions","attention","hands","superior","act","advanced","master","purpose","regard","imported","labourers","pound","doubt","indies","lower","period","scarcity","branches","difference","properly","require","allowed","bring","carry","cultivated","persons","progress","respect","church","houses","loss","moderate","parliament","render","security","day","immediately","mercantile","paying","servants","towns","bullion","extent","portugal","justice","maintaining","sold","spain","circulation","increased","increasing","management","millions","regulated","wheat","exported","partly","credit","sea","india","situation","taxed","clergy","neighbourhood","property","species","effects","exclusive","improved","quarter","standard","liberty","observed","proprietors","branch","establishment","reduced","customs","drawn","extensive","family","human","low","court","raised","reason","dearer","education","masters","tobacco","diminish","gain"],"freq":[1259,1238,1003,970,942,797,776,767,717,688,661,655,635,595,580,575,560,513,508,494,485,481,478,459,445,410,406,405,402,394,377,373,361,357,355,343,336,334,328,328,326,323,322,320,310,309,305,303,298,298,291,277,276,273,273,272,269,268,267,262,260,254,253,247,243,243,241,239,237,234,234,233,233,232,229,223,223,214,211,211,210,209,207,207,204,203,203,200,198,193,192,191,190,185,183,179,179,175,175,174,174,174,174,173,172,172,171,169,169,169,168,167,166,165,164,162,161,160,159,156,155,155,155,154,154,153,152,152,151,149,148,148,147,146,145,145,144,144,144,143,143,143,142,141,140,140,140,138,137,136,136,135,135,135,134,134,134,133,133,133,133,131,130,130,130,130,129,129,128,128,127,127,127,125,125,123,123,122,122,122,120,119,119,119,119,117,116,116,115,115,115,113,113,113,112,112,112,112,112,112,112,111,111,111,109,109,109,108,107,106,106,106,105,105,105,105,105,104,104,103,102,102,102,102,102,101,101,101,101,100,100,100,100,100,100,100,99,98,98,98,98,98,98,97,97,97,97,97,97,96,96,96,95,95,95,95,94,94,94,94,94,94,94,92,92,91,91,90,89,89,88,88,88,88,87,87,86,86,86,85,85,85,84,84,84,83,83,83,83,83,83,82,82,82,81,81,81,81,80,80],"fontFamily":"Segoe UI","fontWeight":"bold","color":"#012169","minSize":0,"weightFactor":0.142970611596505,"backgroundColor":"white","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"diamond","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+</div>
+</div>
+<div id="n-gram-not-word-frequency" class="section level3">
+<h3>N-Gram not word frequency</h3>
+<p>While word tallies are useful, the combination of multiple words form more coherent ideas (at least visually). However, there’s one problem we can’t easily remove the stop words the way we did above. And n-grams (groups of n words) like “the price” don’t convey anymore information than “price.” To deal with this issue we need to do some wrangling.</p>
+<p>The <code>make_ngrams</code> function does the following:</p>
+<ol style="list-style-type: decimal">
+<li><code>filter</code> out any blank lines.</li>
+<li>split each line into a number of ngrams (n=2 in this case) via the <code>token=ngrams</code> parameter in the <code>unnest_tokens</code> function.</li>
+<li><code>seperate</code> the ngram column (column with two words) into two unique columns, each with a word from the ngram.</li>
+<li><code>filter</code> both words in the ngram, from the columns created in the step above, against the list of stop words.</li>
+<li><code>count</code> the number of word combos created.</li>
+<li>Get the number of character per word in each column, filter out words with less than 3 characters. This is an attempt to remove numbers from the ngrams.</li>
+</ol>
+<pre class="r"><code>make_ngrams &lt;- . %&gt;% 
+  filter(text != &#39;&#39;) %&gt;% 
+  unnest_tokens(input = &#39;text&#39;, 
+                output = &#39;bigrams&#39;, 
+                token = &#39;ngrams&#39;, 
+                n=2) %&gt;% 
+  separate(col = &#39;bigrams&#39;, 
+           into = c(&#39;word1&#39;, &#39;word2&#39;), 
+           sep = &#39; &#39;) %&gt;% 
+  filter(!word1 %in% stop_words$word) %&gt;% 
+  filter(!word2 %in% stop_words$word) %&gt;% 
+  count(word1, word2, sort=TRUE) %&gt;% 
+  mutate(nc1 = nchar(word1),
+         nc2 = nchar(word2)) %&gt;% 
+  filter(nc1 &gt; 2, nc2 &gt; 2)
+
+
+won_ngrams &lt;- make_ngrams(won)
+cm_ngrams &lt;- make_ngrams(cm)</code></pre>
+</div>
+<div id="bigram-word-cloud-for-wealth-of-nations" class="section level3">
+<h3>Bigram word cloud for “Wealth of Nations”</h3>
+<p>We recombine the two words in the bigram into one column, and take the 300 most common for the new word cloud.</p>
+<pre class="r"><code>top_300_won_bigram &lt;- head(won_ngrams, 300) %&gt;%
+  transmute(bigram = paste(word1, word2),
+            n)
+  
+wordcloud2(top_300_won_bigram, 
+           color = &#39;#012169&#39;, # Smith is from Scotland
+           shape = &#39;diamond&#39;
+             )</code></pre>
+<div id="htmlwidget-3" style="width:672px;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-3">{"x":{"word":["annual produce","foreign trade","money price","rude produce","home market","thousand pounds","east indies","surplus produce","productive labour","land tax","paper money","public revenue","market price","butcher's meat","east india","bank money","joint stock","real price","common people","gold coin","precious metals","colony trade","mother country","effectual demand","foreign countries","standing army","carrying trade","inferior ranks","ordinary profits","hundred pounds","north america","average price","capital employed","ancient times","foreign commerce","domestic industry","manufactured produce","real wealth","west indies","home consumption","silver money","ten shillings","circulating capital","hundred thousand","neat revenue","silver coin","silver mines","exclusive privilege","twenty shillings","capital stock","mercantile system","natural price","pound weight","private people","considerable time","cultivated land","india company","corn merchant","executive power","fixed capital","mint price","ordinary price","bank notes","country gentlemen","equal quantity","late war","market rate","occasional demands","ordinary rate","productive powers","duty free","equal quantities","final payment","funds destined","human industry","civil government","custom house","foreign country","nominal price","ancient greece","annual importation","common labour","european market","european nations","labouring poor","political economy","stock company","american colonies","annual consumption","average money","considerable degree","enumerated commodities","exclusive company","foreign nations","home trade","household furniture","productive labourers","public debt","raw hides","ready money","sixteenth century","sugar colonies","distant sale","extensive market","finally paid","military force","north american","perfect liberty","revenue arising","sinking fund","standard weight","answering occasional","concernant les","continually increasing","english colonies","foreign market","free trade","ordinary revenue","promissory notes","roman empire","unproductive hands","annual expense","banking companies","barbarous nations","corn trade","distant countries","english wool","ground rents","neat produce","nominal sum","silver bullion","standard gold","stock companies","ten pounds","william iii","bye law","civilized society","commonly paid","considerable revenue","consumable commodities","established church","exclusive trade","fifty thousand","house rent","les droits","lowest price","military exercises","pure silver","stamp duties","stock reserved","ten millions","additional quantity","ancient egypt","bad effects","british empire","common labourers","constant employment","equal capital","european colonies","fellow citizens","foreign markets","foreign salt","geo iii","gold bullion","gross produce","hundred weight","interior commerce","limited time","low price","millions sterling","moderate plenty","natural rate","real revenue","unproductive class","annually imported","artificers manufacturers","bye laws","civil magistrate","commercial world","common price","country labour","country labourers","direct trade","due time","edward iii","foreign corn","free competition","ground rent","india trade","legal tender","memoires concernant","natural liberty","ordinary profit","precious stones","private persons","productive hands","salt provisions","sea coast","stock employed","uncultivated land","vegetable food","water carriage","west indian","advanced price","cash accounts","common currency","continually running","direct foreign","extraordinary expense","fall altogether","forty shillings","free circulation","free importation","iii chap","land carriage","legal rate","linen yarn","malt beer","malt tax","metal pieces","naval power","perfectly free","private copartnery","public debts","public expense","real exchange","real rent","reasonable profit","scotch banks","scotch salt","spanish west","standing armies","tower weight","abundant mines","annual revenue","coined money","colony assemblies","common language","commonly called","considerable quantity","corporation laws","easily absorb","english coin","feudal law","fine gold","foreign manufactures","george iii","landed estate","late recoinage","lie round","maintaining productive","menial servants","natural proportion","necessarily increase","private property","proper consumers","proper proportion","queen anne","real quantity","real recompence","regulated company","sea sticks","silver tower","south sea","spiritous liquors","superior ranks","ten thousand","ten times","thinly inhabited","wholesale merchant","windsor market","additional tax","altogether incapable","annual coinage","british colonies","british industry","british manufactures","building rent","buss fishery","capitation taxes","circulating money","civilized nations","commercial system","complete manufacture","considerable share","constantly employed","country naturally","country villages","distant country","eighteen shillings","european countries","exchequer bills","exclusive privileges","fall short","farming stock","fifteenth century","fine silver","foreign bills","forty days","gold mines"],"freq":[140,99,84,80,78,63,62,61,60,54,51,50,47,45,45,43,43,43,42,41,41,40,40,37,37,36,35,34,34,33,33,32,32,31,30,28,28,28,28,27,27,27,26,26,26,26,26,24,24,23,23,23,23,23,22,22,22,21,21,21,21,21,20,20,20,20,20,20,20,20,19,19,19,19,19,18,18,18,18,17,17,17,17,17,17,17,17,16,16,16,16,16,16,16,16,16,16,16,16,16,16,16,15,15,15,15,15,15,15,15,15,14,14,14,14,14,14,14,14,14,14,13,13,13,13,13,13,13,13,13,13,13,13,13,13,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,12,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,11,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,10,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,9,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7],"fontFamily":"Segoe UI","fontWeight":"bold","color":"#012169","minSize":0,"weightFactor":1.28571428571429,"backgroundColor":"white","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"diamond","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+</div>
+<div id="bigram-word-cloud-for-the-communist-manifesto" class="section level3">
+<h3>Bigram word cloud for “The Communist Manifesto”</h3>
+<p>Like above, we take the 300 most frequent bigrams and join them for the word cloud. Because of the small size of the “Communist Manifesto” the word cloud doesn’t have as many options and looks less dense.</p>
+<pre class="r"><code>top_300_cm_bigram &lt;- head(cm_ngrams, 300) %&gt;%
+  transmute(bigram = paste(word1, word2),
+            n)
+
+wordcloud2(top_300_cm_bigram, 
+           color = &#39;#FF2400&#39;, # Scarlet
+           shape = &#39;star&#39; # communists love their stars
+             )</code></pre>
+<div id="htmlwidget-4" style="width:672px;height:480px;" class="wordcloud2 html-widget"></div>
+<script type="application/json" data-for="htmlwidget-4">{"x":{"word":["bourgeois society","modern industry","class antagonisms","wage labour","productive forces","ruling class","bourgeois property","middle ages","modern bourgeois","petty bourgeois","bourgeois socialism","class struggle","middle class","private property","feudal society","property relations","social conditions","bourgeois class","existing society","true socialism","world market","absolute monarchy","bourgeois conditions","bourgeois family","class parties","communist literature","eternal truths","feudal socialism","free selling","free trade","french criticism","french revolution","german socialism","historical development","historical movement","immense majority","individual bourgeois","industrial production","material conditions","modern bourgeoisie","political supremacy","proletarian movement","united action","accumulated labour","bare existence","bourgeois form","bourgeois freedom","bourgeois private","bourgeois production","bourgeois regime","burst asunder","common property","communist publications","communist society","complete systems","constitution adapted","continued existence","corporate guilds","critical utopian","earlier epochs","economic conditions","existing social","family relations","feudal absolutism","feudal aristocracy","free competition","french ideas","french literature","german literate","german philosophers","guild masters","individual property","industrial armies","intellectual production","national struggle","navigation railways","opposition parties","political movement","political power","political sway","previous mode","radical rupture","raw material","revolutionary class","social power","social science","suffering class","torn asunder","upper hand","utopian socialism","1847 circulate","18th century","abolished feudal","abolishes eternal","absolute governments","absolutism managed","accomplished wonders","accusation reduce","acquire political","acquired knack","acquired status","acquiring property","action historically","action true","active union","actual relations","adapted thereto","adequate expression","administrative reforms","admire found","advanced conditions","advanced countries","advanced opposition","ages sprang","agglomerated production","agitation distinguish","agrarian reformers","agriculture steam","alms bag","altogether collisions","america paved","america trade","ancient heathendom","ancient philosophical","ancient property","ancient rome","ancient world","animals temperance","antagonisms antagonisms","antagonisms society","antagonistic elements","apples dropped","appropriates products","appropriating intellectual","appropriating material","appropriating products","arose feudal","arose petty","arouse sympathy","attains adequate","attempts necessarily","attention chiefly","average price","barbarian countries","barbarian nations","barbarians intensely","battles lies","beaux esprits","beetroot sugar","belong economists","birth begins","bitter pills","bitter witty","blind unbelief","bombastic representative","bone served","bourgeois abolition","bourgeois clap","bourgeois competition","bourgeois epoch","bourgeois government","bourgeois individuality","bourgeois liberty","bourgeois manufacturer","bourgeois marriage","bourgeois mode","bourgeois movement","bourgeois objections","bourgeois prejudices","bourgeois relations","bourgeois revolution","bourgeois sense","bourgeois supremacy","bourgeoisie amounts","bourgeoisie built","bourgeoisie developed","bourgeoisie felled","bourgeoisie forged","bourgeoisie historically","bourgeoisie i.e","bourgeoisie lays","bourgeoisie possesses","bourgeoisie produces","bourgeoisie reserving","bourgeoisie threatens","branding reproach","brave words","bribed tool","brutal display","brutal exploitation","brutally destructive","buying disappears","called socialist","callous cash","calls civilisation","capital i.e","capital money","capitalist masses","capitalists partly","centralisation independent","change consequent","character law","character political","chartered burghers","chartered freedoms","cheap prices","chief accusation","children transformed","children's factory","chinese markets","chinese walls","chivalrous enthusiasm","christian asceticism","christian ideas","christianity declaimed","church christian","cite proudhon's","civil war","civilised countries","civilised nations","clap trap","class antagonism","class character","class culture","class cuts","class developed","class distinctions","class division","class handed","class nay","class organisation","class overthrow","class owner","class prison","class property","class protective","class requires","class risings","class struggles","classes constant","classes decay","classes directly","classes tremble","clerical socialism","closed guilds","cobwebs embroidered","collective product","colossal productive","combination due","combinations trades","coming catastrophe","commercial crises","common affairs","common forms","common plan","common ruin","communism deprives","communist revolution","communist systems","communistic abolition","communistic mode","communistic modes","communistic revolution","communists ally","communists disdain","communists fight","communists stand","compact bodies","competition accompanied","competition bourgeois","complement vanishes","completely developed","completely disappear","completely vanish","complicated arrangement","comprehending theoretically","concentrated property","conducted expeditions","connected provinces","conscious independent","conservative nay","conservative socialists","consisted solely","constant opposition","constant revolutionising","constantly expanding","constantly revolutionising","constantly survived","contending classes","contest breaks","corner stone","cosmopolitan character","countries dependent","countries unite","country dependent","country squires","created conditions","created enormous","creates capital","critical element"],"freq":[14,11,9,9,8,8,7,7,7,7,6,6,6,6,5,5,5,4,4,4,4,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,3,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],"fontFamily":"Segoe UI","fontWeight":"bold","color":"#FF2400","minSize":0,"weightFactor":12.8571428571429,"backgroundColor":"white","gridSize":0,"minRotation":-0.785398163397448,"maxRotation":0.785398163397448,"shuffle":true,"rotateRatio":0.4,"shape":"star","ellipticity":0.65,"figBase64":null,"hover":null},"evals":[],"jsHooks":{"render":[{"code":"function(el,x){\n                        console.log(123);\n                        if(!iii){\n                          window.location.reload();\n                          iii = False;\n\n                        }\n  }","data":null}]}}</script>
+</div>
+</div>
+<div id="sentiment-analysis" class="section level2">
+<h2>Sentiment Analysis</h2>
+<p>Wikipedia says, <a href="https://en.wikipedia.org/wiki/Sentiment_analysis">“Opinion mining (sometimes known as sentiment analysis or emotion AI) refers to the use of natural language processing, text analysis, computational linguistics, and biometrics to systematically identify, extract, quantify, and study affective states and subjective information.”</a> Usually when you see sentiment analysis in tutorials it’s done on tweets. This makes sense, the algorithm is trying to gauge how positive or negative a tweet, email, chat, etc is. From what I’ve read some stock prediction models use sentiment analysis applied to news and social media to assess public opinion about a company or stock.</p>
+<p>In our example we’re going to do sentiment analysis on both books of political theory we used above. This is similar to the examples in the “Text mining in R” book which uses Jane Austen novels.</p>
+<p>Using tidy tools it’s absurdly easy to do sentiment analysis.</p>
+<p>Let’s breakdown the code below:</p>
+<ol style="list-style-type: decimal">
+<li>We get the “Bing” sentiment lexicon via the <code>get_sentiments</code> function and assign it to <code>bing</code></li>
+<li>Then join the <code>cm_token</code> data frame (which is a data frame of the word counts in the “Communist Manifesto”) with the <code>bing</code> data frame. This appends the sentiment score to the words in the book.</li>
+<li>Think of the <code>index</code> as a faux chapter we need to group the book along a evenly spaced vector to aggregate the sentiment score.</li>
+<li>Group the data frame by the sentiment and the index, i.e. number positive words in index <em>n</em> and number of negative words in index <em>n</em>.</li>
+<li>Go from long to wide for each index, creating a row per index number with a column for the number of negative and positive words.</li>
+<li>Calculate the sentiment for each index by subtracting the number of positive terms from negative terms. The last calculation is to divide the sentiment number by the number of lines per index. This is so we can standardize the scores vs the much larger “Wealth of Nations.”</li>
+</ol>
+<pre class="r"><code>bing &lt;- get_sentiments(&quot;bing&quot;)
+
+cm_sentiment &lt;- cm_token %&gt;%
+  inner_join(bing) %&gt;%
+  count(index = line %/% 20, sentiment) %&gt;%
+  spread(sentiment, n, fill = 0) %&gt;%
+  mutate(sentiment = (positive - negative)/20)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<p>Now we can visualize the sentiment progression of the book.</p>
+<pre class="r"><code>cm_sentiment %&gt;% 
+  ggplot(aes(index, sentiment)) +
+  geom_col(fill=&#39;#FF2400&#39;) +
+  theme_minimal()</code></pre>
+<p><img src="/post/2018-11-12-text-analysis-communism-vs-liberalism_files/figure-html/unnamed-chunk-16-1.png" width="672" /></p>
+<p>Based on the <code>Bing</code> lexicon “The Communist Manifesto” is a rather “negative” book. There’s a few of issues here.</p>
+<ol style="list-style-type: decimal">
+<li>The book was originally published in German. Does the translation process contribute to the “sentiment” of a work? I’m no expert but I doubt that it would be a very positive book in the original German.</li>
+<li>The number of lines per index (similar to a bin in a histogram) can produce artifacts that have more to do with the cut point than the content.</li>
+<li>Does the way one views Communism and Socialism impact the sentiment. A common term in “The Communist Manifesto” is “class struggle.” Clearly this has negative sentiment according to the lexicon.</li>
+</ol>
+<pre class="r"><code>bing %&gt;% 
+  filter(word == &#39;struggle&#39;)</code></pre>
+<pre><code>## # A tibble: 1 x 2
+##   word     sentiment
+##   &lt;chr&gt;    &lt;chr&gt;    
+## 1 struggle negative</code></pre>
+<p>But if someone views class struggle as the process that happens on the path to communism it doesn’t have the same negative undertones.</p>
+<p>Nonetheless, “The Communist Manifesto” is a work with a negative sentiment. Let’s apply the same analysis to the “Wealth of Nations.” The only difference is the number of lines per index. This makes sense since the “Wealth of Nations” is a much larger work. If we want the length of the sentiment analysis to be roughly the same size across graphs there needs to be many more lines per index for the “Wealth of Nations.” Earlier we measured that the “Wealth of Nations” contained approx 23 lines per every line in “The Communist Manifesto.” The lines per index above is set at 20. Setting the “Wealth of Nations” at 480 lines per index is the optimal size for a comparison.</p>
+<pre class="r"><code>won_sentiment &lt;- won_token %&gt;%
+  inner_join(get_sentiments(&quot;bing&quot;)) %&gt;%
+  count(index = line %/% 480, sentiment) %&gt;%
+  spread(sentiment, n, fill = 0) %&gt;%
+  mutate(sentiment = (positive - negative)/480)</code></pre>
+<pre><code>## Joining, by = &quot;word&quot;</code></pre>
+<p>Based on the analysis Smith’s work is very positive. I personally believe that these results are representative of the philosophical outlook of each system.</p>
+<p>To wrap it up with cliche, communism views the world as a big pie and we need to redistribute the pieces. Classical liberalism views the world as an ever expanding pie, and one person’s gain doesn’t come at the expense of others. Trade makes us all richer.</p>
+<pre class="r"><code>won_sentiment %&gt;% 
+  ggplot(aes(index, sentiment)) +
+  geom_col(fill=&#39;#012169&#39;) +
+  theme_minimal()</code></pre>
+<p><img src="/post/2018-11-12-text-analysis-communism-vs-liberalism_files/figure-html/unnamed-chunk-19-1.png" width="672" /></p>
+</div>
