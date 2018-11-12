@@ -1,0 +1,329 @@
+---
+title: Text Analysis Communism vs Liberalism
+author: Cory Waters
+date: '2018-11-12'
+slug: text-analysis-communism-vs-liberalism
+categories:
+  - R
+tags:
+  - text
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Text Analysis of Political Tracts
+
+The concepts and programming style in this post are inspired by the book ["Text Mining in R"](https://www.tidytextmining.com).
+
+Most text mining tutorials you'll come across on the web use modern (as in the last year to decade) sources. Way too many use twitter data. There might be value in sampling the "collective conscious" of the twitter-verse (I'm skeptical) but analysis of documents that have stood the test of time seems a more worthy endeavor.
+
+Capitalism and Communism are the two most important political systems of the last hundred years. Each has its own canon of influential books. Defining the *most* influential isn't the purpose of this post. For communism I'm selecting "The Communist Manifesto" by Karl Marx and Friedrich Engels. An argument can be made that "Das Kapital" is more influential, but it's more technical and not suited for a general audience (IMO). For capitalism there's a consensus that "An Inquiry into the Nature and Causes of the Wealth of Nations" by Adam Smith is the definitive work.
+
+Both of these works are over 150 years old. The "Wealth of Nations" came out the same year as the American Revolution making it close to 250 years old. [According to Wikipedia](https://en.wikipedia.org/wiki/The_Communist_Manifesto), "The Communist Manifesto" was published in 1848 and was in the German language. Frederick Engels writes in the preface to a later edition that it was translated to English as early as 1850 but the "official" translation (the translation Engels approved of) [wasn't published till 1888](https://www.marxists.org/archive/marx/works/1848/communist-manifesto/preface.htm).
+
+Since both works are in the public domain they're easily accessed via [Project Gutenberg](https://www.gutenberg.org). One of the great things about the `R` language is the number packages available. If you have an idea for a package chances are someone else has already created it and posted it online. That's the case with the `gutenbergr` package. The documentation states that the `gutenberger` package lets users ["Search and download public domain texts from Project Gutenberg"](https://cran.r-project.org/web/packages/gutenbergr/vignettes/intro.html). 
+
+Below we'll use the `gutenbergr` to download both books and load them into data frames for further manipulation. We're also going to use the `tidytext` and `wordcloud2` packages so you'll need to download and install them both if they aren't installed on your system.
+
+Some notes about the process below.
+
++ To download a book via project `gutenberger` we need to know the book's id number. There's a few ways to obtain this. The easiest is via the `gutenberg_metadata` data frame loaded with the package. `gutenberg_metadata` can be filtered by title, author, etc. We can also use Google and copy the id from the text's webpage.
+
++ Some books are posted multiple times. Filtering on the title might result in a vector of different id numbers. Usually we would investigate to make sure we're working with the correct edition (or book in some cases). In the example below we're grabbing the first id and using it.
+
+```{r load_and_download}
+
+### Load Packages ###
+library(tidyverse) # access to dplyr/tidyr/stringr functions
+library(gutenbergr)
+library(tidytext) # text analysis functions
+library(wordcloud2) # visualize text
+####################
+
+### Download books ###
+cm_id <- gutenberg_metadata %>% 
+  filter(title == 'The Communist Manifesto') %>% 
+  pull(gutenberg_id)
+
+won_id <- gutenberg_metadata %>% 
+  filter(title == 'An Inquiry into the Nature and Causes of the Wealth of Nations') %>% 
+  pull(gutenberg_id)
+
+# length(cm_id) # 2
+cm_id <- cm_id[1]
+# length(won_id)
+
+cm <- gutenberg_download(cm_id[1])
+won <- gutenberg_download(won_id)
+```
+
+### Get Summary of Books
+
+A quick `glimpse` of "The Communist Manifesto".
+
+```{r}
+glimpse(cm)
+```
+
+
+And a `glimpse` of "An Inquiry into the Nature and Causes of the Wealth of Nations."
+
+```{r}
+glimpse(won)
+```
+
+```{r}
+nrow(won) / nrow(cm)
+```
+
+"Wealth of Nations" is a huge book compared to the "Communist Manifesto." Almost 23 lines of Smith for every line of Marx & Engels. For now we'll ignore the size discrepancy.
+
+### Cleaning up the books
+
+Often, books from Project Gutenberg contain blank lines and metadata in the first few lines.
+
+```{r}
+cm %>% 
+  head(10)
+```
+
+In this case it's the first three lines. Another thing we're going to want to do for later analysis is add the line number.
+
+```{r}
+cm <- cm %>% 
+  filter(text != '') %>% 
+  slice(-(1:3))
+
+cm <- cm %>% 
+  mutate(line = row_number(gutenberg_id))
+
+cm %>% 
+  head(10)
+```
+
+We can chop off the first five lines of "Wealth of Nations"
+
+```{r}
+
+won <- won %>% 
+  slice(-(1:5)) %>% 
+  filter(text != '') %>% 
+  mutate(line = row_number(gutenberg_id))
+
+won %>% 
+  head(10)
+```
+
+### The obligatory word cloud
+
+No text analysis would be complete without a word cloud of the most common words. I'm not a huge fan of word clouds but I'm in the minority it seems. Let's do two word clouds of the 300 most frequent words in each text (after stop words removed).
+
+#### Removing "stop words"
+
+I can't find a concise definition of stop words. Wikipedia says, "In computing, stop words are words which are filtered out before or after processing of natural language data." Which words get filtered out is up to who makes the list. In short, stop words are the most common words "a", "and", "the", etc. that convey no meaning. The `tidytext` package defaults to the "snowball" lexicon of stop words. It also supports any of the lexicons in the `stopwords` package.
+
+```{r}
+stopwords::stopwords_getsources()
+```
+
+Instead of using the `get_stopwords` function we're going to use the preloaded `stop_words` data frame that loads with `tidytext`. To remove the stop words from a book we need to:
+
+1. Tokenize the words in the work. This is easily done via the `unnest_tokens` function.
+2. `anti_join` the `stop_words` data frame to the tokenized book data frame. An `anti_join` removes the words from the first data frame that appear in both data frames.
+
+```{r}
+# a python lambda-function-esque way of writing a function in R
+token_remove_stopwords <- . %>% 
+  unnest_tokens(input = 'text',
+                output = 'word') %>% 
+  anti_join(stop_words)
+
+cm_token <- cm %>% 
+  token_remove_stopwords()
+
+won_token <- won %>% 
+  token_remove_stopwords()
+
+```
+
+### Group by most frequent
+
+Next we'll group by `word`, determine the frequency, sort by most frequent and save the top 300 most frequent words as a separate data frame. The "Wealth of Nations" has an issue, Smith uses lots of numbers in the book. We don't want 1's or some other number taking up space in the word cloud. They don't contain any information. So we'll do a small hack to avoid that problem.
+
+```{r}
+top_300_token <- . %>% 
+  count(word, sort = TRUE) %>% 
+  head(300)
+
+top_300_cm <- cm_token %>% 
+  top_300_token()
+
+top_300_won <- won_token %>%
+  mutate(nc = nchar(word)) %>% # count the number of characters in each word
+  filter(nc > 2) %>% # "words" of 3 containing three characters or more 
+  top_300_token()
+```
+
+### Create word cloud
+
+Now we have everything we need to create our word clouds. We've already loaded the `wordcloud2` package. The package has lots of options but we'll keep it simple.
+
+#### The Communist Manifesto Word Cloud 
+
+```{r}
+wordcloud2(top_300_cm, 
+           color = '#FF2400', # Scarlet
+           shape = 'star' # communists love their stars
+             )
+```
+
+#### The Wealth of Nations Word Cloud
+
+```{r}
+wordcloud2(top_300_won, 
+           color = '#012169', # Smith is from Scotland
+           shape = 'diamond'
+             )
+```
+
+### N-Gram not word frequency
+
+While word tallies are useful, the combination of multiple words form more coherent ideas (at least visually). However, there's one problem we can't easily remove the stop words the way we did above. And n-grams (groups of n words) like "the price" don't convey anymore information than "price." To deal with this issue we need to do some wrangling.
+
+The `make_ngrams` function does the following:
+
+1. `filter` out any blank lines.
+2. split each line into a number of ngrams (n=2 in this case) via the `token=ngrams` parameter in the `unnest_tokens` function.
+3. `seperate` the ngram column (column with two words) into two unique columns, each with a word from the ngram.
+4. `filter` both words in the ngram, from the columns created in the step above, against the list of stop words.
+5. `count` the number of word combos created.
+6. Get the number of character per word in each column, filter out words with less than 3 characters. This is an attempt to remove numbers from the ngrams.
+
+
+```{r}
+make_ngrams <- . %>% 
+  filter(text != '') %>% 
+  unnest_tokens(input = 'text', 
+                output = 'bigrams', 
+                token = 'ngrams', 
+                n=2) %>% 
+  separate(col = 'bigrams', 
+           into = c('word1', 'word2'), 
+           sep = ' ') %>% 
+  filter(!word1 %in% stop_words$word) %>% 
+  filter(!word2 %in% stop_words$word) %>% 
+  count(word1, word2, sort=TRUE) %>% 
+  mutate(nc1 = nchar(word1),
+         nc2 = nchar(word2)) %>% 
+  filter(nc1 > 2, nc2 > 2)
+
+
+won_ngrams <- make_ngrams(won)
+cm_ngrams <- make_ngrams(cm)
+
+```
+
+### Bigram word cloud for "Wealth of Nations"
+
+We recombine the two words in the bigram into one column, and take the 300 most common for the new word cloud.
+
+```{r}
+
+top_300_won_bigram <- head(won_ngrams, 300) %>%
+  transmute(bigram = paste(word1, word2),
+            n)
+  
+wordcloud2(top_300_won_bigram, 
+           color = '#012169', # Smith is from Scotland
+           shape = 'diamond'
+             )
+```
+
+### Bigram word cloud for "The Communist Manifesto"
+
+Like above, we take the 300 most frequent bigrams and join them for the word cloud. Because of the small size of the "Communist Manifesto" the word cloud doesn't have as many options and looks less dense.
+
+```{r}
+top_300_cm_bigram <- head(cm_ngrams, 300) %>%
+  transmute(bigram = paste(word1, word2),
+            n)
+
+wordcloud2(top_300_cm_bigram, 
+           color = '#FF2400', # Scarlet
+           shape = 'star' # communists love their stars
+             )
+```
+
+## Sentiment Analysis
+
+Wikipedia says, ["Opinion mining (sometimes known as sentiment analysis or emotion AI) refers to the use of natural language processing, text analysis, computational linguistics, and biometrics to systematically identify, extract, quantify, and study affective states and subjective information."](https://en.wikipedia.org/wiki/Sentiment_analysis) Usually when you see sentiment analysis in tutorials it's done on tweets. This makes sense, the algorithm is trying to gauge how positive or negative a tweet, email, chat, etc is. From what I've read some stock prediction models use sentiment analysis applied to news and social media to assess public opinion about a company or stock.
+
+In our example we're going to do sentiment analysis on both books of political theory we used above. This is similar to the examples in the "Text mining in R" book which uses Jane Austen novels. 
+
+Using tidy tools it's absurdly easy to do sentiment analysis.
+
+Let's breakdown the code below:
+
+1. We get the "Bing" sentiment lexicon via the `get_sentiments` function and assign it to `bing`
+2. Then join the `cm_token` data frame (which is a data frame of the word counts in the "Communist Manifesto") with the `bing` data frame. This appends the sentiment score to the words in the book.
+3. Think of the `index` as a faux chapter we need to group the book along a evenly spaced vector to aggregate the sentiment score. 
+4. Group the data frame by the sentiment and the index, i.e. number positive words in index *n* and number of negative words in index *n*.
+5. Go from long to wide for each index, creating a row per index number with a column for the number of negative and positive words.
+6. Calculate the sentiment for each index by subtracting the number of positive terms from negative terms. The last calculation is to divide the sentiment number by the number of lines per index. This is so we can standardize the scores vs the much larger "Wealth of Nations."
+
+```{r}
+
+bing <- get_sentiments("bing")
+
+cm_sentiment <- cm_token %>%
+  inner_join(bing) %>%
+  count(index = line %/% 20, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = (positive - negative)/20)
+```
+
+Now we can visualize the sentiment progression of the book. 
+
+```{r}
+cm_sentiment %>% 
+  ggplot(aes(index, sentiment)) +
+  geom_col(fill='#FF2400') +
+  theme_minimal()
+```
+
+Based on the `Bing` lexicon "The Communist Manifesto" is a rather "negative" book. There's a few of issues here.
+
+1. The book was originally published in German. Does the translation process contribute to the "sentiment" of a work? I'm no expert but I doubt that it would be a very positive book in the original German.
+2. The number of lines per index (similar to a bin in a histogram) can produce artifacts that have more to do with the cut point than the content.
+3. Does the way one views Communism and Socialism impact the sentiment. A common term in "The Communist Manifesto" is "class struggle." Clearly this has negative sentiment according to the lexicon.
+
+```{r}
+bing %>% 
+  filter(word == 'struggle')
+```
+
+But if someone views class struggle as the process that happens on the path to communism it doesn't have the same negative undertones.
+
+Nonetheless, "The Communist Manifesto" is a work with a negative sentiment. Let's apply the same analysis to the "Wealth of Nations." The only difference is the number of lines per index. This makes sense since the "Wealth of Nations" is a much larger work. If we want the length of the sentiment analysis to be roughly the same size across graphs there needs to be many more lines per index for the "Wealth of Nations." Earlier we measured that the "Wealth of Nations" contained approx 23 lines per every line in "The Communist Manifesto." The lines per index above is set at 20. Setting the "Wealth of Nations" at 480 lines per index is the optimal size for a comparison.
+
+
+```{r}
+won_sentiment <- won_token %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(index = line %/% 480, sentiment) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = (positive - negative)/480)
+```
+
+Based on the analysis Smith's work is very positive. I personally believe that these results are representative of the philosophical outlook of each system.
+
+To wrap it up with cliche, communism views the world as a big pie and we need to redistribute the pieces. Classical liberalism views the world as an ever expanding pie, and one person's gain doesn't come at the expense of others. Trade makes us all richer.
+
+```{r}
+won_sentiment %>% 
+  ggplot(aes(index, sentiment)) +
+  geom_col(fill='#012169') +
+  theme_minimal()
+```
