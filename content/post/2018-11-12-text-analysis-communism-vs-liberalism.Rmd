@@ -33,7 +33,7 @@ Some notes about the process below.
 
 + Some books are posted multiple times. Filtering on the title might result in a vector of different id numbers. Usually we would investigate to make sure we're working with the correct edition (or book in some cases). In the example below we're grabbing the first id and using it.
 
-```{r load_and_download}
+```{r load_and_download, warning=FALSE, message=FALSE}
 
 ### Load Packages ###
 library(tidyverse) # access to dplyr/tidyr/stringr functions
@@ -118,7 +118,7 @@ won %>%
 
 ### The obligatory word cloud
 
-No text analysis would be complete without a word cloud of the most common words. I'm not a huge fan of word clouds but I'm in the minority it seems. Let's do two word clouds of the 300 most frequent words in each text (after stop words removed).
+No text analysis would be complete without a word cloud of the most common words. I'm not a huge fan of word clouds but I'm in the minority it seems. Let's do two word clouds of the 100 most frequent words in each text (after stop words removed).
 
 #### Removing "stop words"
 
@@ -150,43 +150,46 @@ won_token <- won %>%
 
 ### Group by most frequent
 
-Next we'll group by `word`, determine the frequency, sort by most frequent and save the top 300 most frequent words as a separate data frame. The "Wealth of Nations" has an issue, Smith uses lots of numbers in the book. We don't want 1's or some other number taking up space in the word cloud. They don't contain any information. So we'll do a small hack to avoid that problem.
+Next we'll group by `word`, determine the frequency, sort by most frequent and save the top 100 most frequent words as a separate data frame. The "Wealth of Nations" has an issue, Smith uses lots of numbers in the book. We don't want 1's or some other number taking up space in the word cloud. They don't contain any information. So we'll do a small hack to avoid that problem.
 
 ```{r}
-top_300_token <- . %>% 
+top_100_token <- . %>% 
   count(word, sort = TRUE) %>% 
-  head(300)
+  head(100)
 
-top_300_cm <- cm_token %>% 
-  top_300_token()
+top_100_cm <- cm_token %>% 
+  top_100_token()
 
-top_300_won <- won_token %>%
+top_100_won <- won_token %>%
   mutate(nc = nchar(word)) %>% # count the number of characters in each word
   filter(nc > 2) %>% # "words" of 3 containing three characters or more 
-  top_300_token()
+  top_100_token()
 ```
 
 ### Create word cloud
 
-Now we have everything we need to create our word clouds. We've already loaded the `wordcloud2` package. The package has lots of options but we'll keep it simple.
+Now we have everything we need to create our word clouds. We've already loaded the `wordcloud` package. The package has lots of options but we'll keep it simple.
 
 #### The Communist Manifesto Word Cloud 
 
-```{r}
-wordcloud2(top_300_cm, 
-           color = '#FF2400', # Scarlet
-           shape = 'star' # communists love their stars
-             )
+```{r eval=FALSE}
+wordcloud2(top_100_cm, 
+           color='#ff2400', 
+           shape = 'star', size=.75)
+
 ```
+
+![](/post/2018-11-12-text-analysis-communism-vs-liberalism_files/figure-html/cm_top100.png)
 
 #### The Wealth of Nations Word Cloud
 
-```{r}
-wordcloud2(top_300_won, 
-           color = '#012169', # Smith is from Scotland
-           shape = 'diamond'
-             )
+```{r eval=FALSE}
+wordcloud2(top_100_won, 
+           color='royalblue', 
+           shape = 'diamond', size=.75)
 ```
+
+![](/post/2018-11-12-text-analysis-communism-vs-liberalism_files/figure-html/won_top100.png)
 
 ### N-Gram not word frequency
 
@@ -227,34 +230,38 @@ cm_ngrams <- make_ngrams(cm)
 
 ### Bigram word cloud for "Wealth of Nations"
 
-We recombine the two words in the bigram into one column, and take the 300 most common for the new word cloud.
+We recombine the two words in the bigram into one column, and take the 100 most common for the new word cloud.
 
-```{r}
+```{r eval=FALSE}
 
-top_300_won_bigram <- head(won_ngrams, 300) %>%
+top_100_won_bigram <- head(won_ngrams, 100) %>%
   transmute(bigram = paste(word1, word2),
             n)
   
-wordcloud2(top_300_won_bigram, 
-           color = '#012169', # Smith is from Scotland
-           shape = 'diamond'
-             )
+wordcloud2(top_100_won_bigram, 
+           color='royalblue', 
+           shape = 'diamond', size=.75)
+
 ```
+
+![](/post/2018-11-12-text-analysis-communism-vs-liberalism_files/figure-html/won_bigram.png)
 
 ### Bigram word cloud for "The Communist Manifesto"
 
-Like above, we take the 300 most frequent bigrams and join them for the word cloud. Because of the small size of the "Communist Manifesto" the word cloud doesn't have as many options and looks less dense.
+Like above, we take the 100 most frequent bigrams and join them for the word cloud. Because of the small size of the "Communist Manifesto" the word cloud doesn't have as many options and looks less dense.
 
-```{r}
-top_300_cm_bigram <- head(cm_ngrams, 300) %>%
+```{r eval=FALSE}
+top_100_cm_bigram <- head(cm_ngrams, 100) %>%
   transmute(bigram = paste(word1, word2),
             n)
 
-wordcloud2(top_300_cm_bigram, 
-           color = '#FF2400', # Scarlet
-           shape = 'star' # communists love their stars
-             )
+wordcloud2(top_100_cm_bigram, 
+           color='#ff2400', 
+           shape = 'star', size=.5)
+
 ```
+
+![](/post/2018-11-12-text-analysis-communism-vs-liberalism_files/figure-html/cm_bigram.png)
 
 ## Sentiment Analysis
 
