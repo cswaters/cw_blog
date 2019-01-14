@@ -5,7 +5,7 @@ author = "Cory Waters"
 description = "Data work I'm involved in"
 +++
 
-I am CDO at [VoteStrategies](https://votestrategies.com) a political consulting firm. 
+I am a Data Scientist / CDO at [VoteStrategies](https://votestrategies.com) a political consulting firm. 
     
 Below are some of the demos we send to potential clients:
 
