@@ -7,4 +7,5 @@ description = "Get a hold of me"
 
 ## Contact
 
-If for some reason you want to get in touch with me you can contact me via [twitter](https://twitter.com/cory_waters) or by email: corywaters@ "the gmail domain." 
+If you want to get in touch with me you can contact me via by email: corywaters@ "the gmail domain." 
+

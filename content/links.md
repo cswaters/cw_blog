@@ -1,7 +1,5 @@
 +++
 title = "Links"
-date = 2017-09-03T02:13:50Z
-author = "Cory Waters"
 description = "Blogs and people I follow"
 +++
 

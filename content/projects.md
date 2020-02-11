@@ -5,14 +5,20 @@ author = "Cory Waters"
 description = "Data work I'm involved in"
 +++
 
-I am a Data Scientist / CDO at [VoteStrategies](https://votestrategies.com) a political consulting firm. 
+I'm a data scientist at a political consulting firm. 
     
-Below are some of the demos we send to potential clients:
+Here's some examples of work I've done in politics.
 
-+ [Showcase](https://vs-showcase.netlify.com)
-+ [Demo Analysis of District](https://vs-i-demo-district.netlify.com)
-+ [Static Plots District Analysis](https://vs-demo-data-district.netlify.com)
 
+| Link | Description
+| --- |  ---
+| 🔗 [Showcase](https://vs-showcase.netlify.com) | Dashboard of plotting examples
+| 🔗 [Analysis of District](https://vs-i-demo-district.netlify.com) | Plotly version of static demographic graphs
+| 🔗 [District Analysis](https://vs-political-demo.netlify.com/) | Static Charts with ToC
+| 🔗 [Election Results](https://cswaters.shinyapps.io/PBC-Group25-Results/)| Interactive mapping of results by polling place
+| 🔗 [Google Trends](https://github.com/cswaters/google-search-congressional-demo) | Google trends by congressional district
+| 🔗 [Allen West out of state Donations](https://github.com/cswaters/donations-state-vs-out-of-state) |
+| 🔗 [Precinct Viewer](https://cswaters.shinyapps.io/PBCPrecinctViewer/) | Explore precinct data
 I'm also in the process of putting together a book on applying R to sports betting. It probably won't be done anytime soon but I've started putting up some of the scripts to github. It's focused on US sports, mainly NFL and NBA.
 
 + [Betting with R Book (work in progress)](https://github.com/cswaters/betting_with_R_bookfiles)

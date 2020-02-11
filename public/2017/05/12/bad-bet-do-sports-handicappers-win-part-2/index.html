@@ -2,80 +2,93 @@
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="Hugo 0.48" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Bad Bet: Do sports handicappers win? Part 2 - Questioning Certainty</title>
+    <meta property="og:title" content="Bad Bet: Do sports handicappers win? Part 2 - Questioning Certainty">
+    
+    <meta name="twitter:card" content="summary">
 
+    
+      
+    
 
-<title>Bad Bet: Do sports handicappers win? Part 2 - Questioning Certainty</title>
-<meta property="og:title" content="Bad Bet: Do sports handicappers win? Part 2 - Questioning Certainty">
+    
+      
+      <meta property="description" content="Follow up to last post with a variable bet size model">
+      <meta property="og:description" content="Follow up to last post with a variable bet size model">
+      
+    
 
+    
+    
 
+    
 
-  
-  <meta property="description" content="Follow up to last post with a variable bet size model">
-  
-
-
-
-
-
-
+    
+    
 
 
 <link href='//cdn.bootcss.com/highlight.js/9.11.0/styles/tomorrow.min.css' rel='stylesheet' type='text/css' />
 
 
 
-<link rel="stylesheet" href="/css/fonts.css" media="all">
-<link rel="stylesheet" href="/css/main.css" media="all">
-
-
-
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
   </head>
-  <body>
-    <div class="wrapper">
-      <header class="header">
-        <nav class="nav">
-  <a href="/" class="nav-logo">
-    <img src="/images/logo.jpeg"
-         width="50"
-         height="50"
-         alt="Logo">
-  </a>
 
-  <ul class="nav-links">
-    
-    <li><a href="/about/">About</a></li>
-    
-    <li><a href="/post/">Blog</a></li>
-    
-    <li><a href="https://github.com/cswaters">GitHub</a></li>
-    
-    <li><a href="/links/">Links</a></li>
-    
-    <li><a href="/projects/">Projects</a></li>
-    
+  
+  <body class="2017">
+    <header class="masthead">
+      <h1><a href="/">Questioning Certainty</a></h1>
+
+<p class="tagline">The website of Cory Waters.</p>
+
+      <nav class="menu">
+  <input id="menu-check" type="checkbox" />
+  <label id="menu-label" for="menu-check" class="unselectable">
+    <span class="icon close-icon">✕</span>
+    <span class="icon open-icon">☰</span>
+    <span class="text">Menu</span>
+  </label>
+  <ul>
+  
+  
+  <li><a href="/about/">About</a></li>
+  
+  <li><a href="/post/">Blog</a></li>
+  
+  <li><a href="https://github.com/cswaters">GitHub</a></li>
+  
+  <li><a href="/links/">Links</a></li>
+  
+  <li><a href="/projects/">Projects</a></li>
+  
+  
   </ul>
 </nav>
+
+    </header>
+
+    <article class="main">
+      <header class="title">
+      
+<h1>Bad Bet: Do sports handicappers win? Part 2</h1>
+
+<h3>cw
+  /  2017-05-12</h3>
+<hr>
+
 
       </header>
 
 
-<main class="content" role="main">
 
-  <article class="article">
-    
-    <span class="article-duration">3 min read</span>
-    
 
-    <h1 class="article-title">Bad Bet: Do sports handicappers win? Part 2</h1>
 
-    
-    <span class="article-date">2017/05/12</span>
-    
 
-    <div class="article-content">
-      <p>So far we’ve been using a flat betting model where our bettors bet size never varies. While this might be easier to model it isn’t very realistic. We could go with something like the <a href="https://en.wikipedia.org/wiki/Kelly_criterion">Kelly criterion</a> to determine the bet size but we’ll opt for easy again and use “x” percentage of the bettor’s bankroll. This means instead of using an infinite bankroll where a player can never run out of money we will start with a fixed sum. The bankroll size will determine the bet amount</p>
+<p>So far we’ve been using a flat betting model where our bettors bet size never varies. While this might be easier to model it isn’t very realistic. We could go with something like the <a href="https://en.wikipedia.org/wiki/Kelly_criterion">Kelly criterion</a> to determine the bet size but we’ll opt for easy again and use “x” percentage of the bettor’s bankroll. This means instead of using an infinite bankroll where a player can never run out of money we will start with a fixed sum. The bankroll size will determine the bet amount</p>
 <pre class="r"><code>bettor_bankroll_sim &lt;- function(bets=500, bet_size_p=0.05, bank_roll=1000, winPct=.5) {
   results &lt;- rep(0, bets)
   for (i in 1:length(results)) {
@@ -152,49 +165,10 @@ df %&gt;%
 ##  Max.   :64286155</code></pre>
 <p>The bettor with the worst ‘luck’ ends up 12x his starting balance while the bettor with the best outcome is sitting on roughly 64 million dollars.</p>
 
-    </div>
-  </article>
 
+  <footer>
   
-<section id="comments">
-  <div id="disqus_thread"></div>
-  <script>
-  var disqus_config = function () {
   
-  };
-  (function() {
-    var inIFrame = function() {
-      var iframe = true;
-      try { iframe = window.self !== window.top; } catch (e) {}
-      return iframe;
-    };
-    if (inIFrame()) return;
-    var d = document, s = d.createElement('script');
-    s.src = '//corywaters.disqus.com/embed.js'; s.async = true;
-    s.setAttribute('data-timestamp', +new Date());
-    (d.head || d.body).appendChild(s);
-  })();
-  </script>
-  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</section>
-
-
-
-</main>
-
-      <footer class="footer">
-        <ul class="footer-links">
-          <li>
-            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
-          </li>
-          <li>
-            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
-          </li>
-        </ul>
-      </footer>
-
-    </div>
-    
 
 
 
@@ -204,16 +178,15 @@ df %&gt;%
 
 <script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/r.min.js"></script>
 <script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/yaml.min.js"></script>
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/python.min.js"></script>
 <script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
 
 
 
-    
-<script src="/js/math-code.js"></script>
-<script async src="//cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-
-
-    
+  
+  </footer>
+  </article>
+  
 <script type="application/javascript">
 var doNotTrack = false;
 if (!doNotTrack) {

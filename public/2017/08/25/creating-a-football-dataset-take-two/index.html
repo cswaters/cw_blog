@@ -2,78 +2,93 @@
 <html lang="en-us">
   <head>
     <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="generator" content="Hugo 0.48" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <title>Creating a football dataset, Take Two - Questioning Certainty</title>
+    <meta property="og:title" content="Creating a football dataset, Take Two - Questioning Certainty">
+    
+    <meta name="twitter:card" content="summary">
 
+    
+      
+    
 
-<title>Creating a football dataset, Take Two - Questioning Certainty</title>
-<meta property="og:title" content="Creating a football dataset, Take Two - Questioning Certainty">
+    
+      
+      <meta property="description" content="I updated my previous post. The data used to create db wasn’t reliable and missing games. Because of that I set out to find a new free source. I found a great one. Dr. Wags Picks - Algorithm Based &amp;hellip;">
+      <meta property="og:description" content="I updated my previous post. The data used to create db wasn’t reliable and missing games. Because of that I set out to find a new free source. I found a great one. Dr. Wags Picks - Algorithm Based &amp;hellip;">
+      
+    
 
+    
+    
 
+    
 
-  
-
-
-
-
-
-
+    
+    
 
 
 <link href='//cdn.bootcss.com/highlight.js/9.11.0/styles/tomorrow.min.css' rel='stylesheet' type='text/css' />
 
 
 
-<link rel="stylesheet" href="/css/fonts.css" media="all">
-<link rel="stylesheet" href="/css/main.css" media="all">
-
-
-
+    <link rel="stylesheet" href="/css/style.css" />
+    <link rel="stylesheet" href="/css/fonts.css" />
+    
   </head>
-  <body>
-    <div class="wrapper">
-      <header class="header">
-        <nav class="nav">
-  <a href="/" class="nav-logo">
-    <img src="/images/logo.jpeg"
-         width="50"
-         height="50"
-         alt="Logo">
-  </a>
 
-  <ul class="nav-links">
-    
-    <li><a href="/about/">About</a></li>
-    
-    <li><a href="/post/">Blog</a></li>
-    
-    <li><a href="https://github.com/cswaters">GitHub</a></li>
-    
-    <li><a href="/links/">Links</a></li>
-    
-    <li><a href="/projects/">Projects</a></li>
-    
+  
+  <body class="2017">
+    <header class="masthead">
+      <h1><a href="/">Questioning Certainty</a></h1>
+
+<p class="tagline">The website of Cory Waters.</p>
+
+      <nav class="menu">
+  <input id="menu-check" type="checkbox" />
+  <label id="menu-label" for="menu-check" class="unselectable">
+    <span class="icon close-icon">✕</span>
+    <span class="icon open-icon">☰</span>
+    <span class="text">Menu</span>
+  </label>
+  <ul>
+  
+  
+  <li><a href="/about/">About</a></li>
+  
+  <li><a href="/post/">Blog</a></li>
+  
+  <li><a href="https://github.com/cswaters">GitHub</a></li>
+  
+  <li><a href="/links/">Links</a></li>
+  
+  <li><a href="/projects/">Projects</a></li>
+  
+  
   </ul>
 </nav>
+
+    </header>
+
+    <article class="main">
+      <header class="title">
+      
+<h1>Creating a football dataset, Take Two</h1>
+
+<h3>Cory Waters
+  /  2017-08-25</h3>
+<hr>
+
 
       </header>
 
 
-<main class="content" role="main">
 
-  <article class="article">
-    
-    <span class="article-duration">11 min read</span>
-    
 
-    <h1 class="article-title">Creating a football dataset, Take Two</h1>
 
-    
-    <span class="article-date">2017/08/25</span>
-    
 
-    <div class="article-content">
-      <div id="a-new-source" class="section level2">
+<div id="a-new-source" class="section level2">
 <h2>A new source</h2>
 <p>I updated my <a href="https://www.corywaters.com/08/20/2017/creating-an-nfl-point-spread-dataset/">previous post</a>. The data used to create db wasn’t reliable and missing games. Because of that I set out to find a new free source. I found a great one. <a href="http://www.drwagpicks.com/p/blog-page.html">Dr. Wags Picks - Algorithm Based Sports Handicapper</a> makes NCAA and NFL data available on his blog. He even tries to follow the repole format.</p>
 <p>This time we’re going to grab the NCAA and NFL data. We’ll load the <code>tidyverse</code> again.</p>
@@ -443,49 +458,10 @@ nfl_urls &lt;- cross_df(list(year = seasons,
 </ol>
 </div>
 
-    </div>
-  </article>
 
+  <footer>
   
-<section id="comments">
-  <div id="disqus_thread"></div>
-  <script>
-  var disqus_config = function () {
   
-  };
-  (function() {
-    var inIFrame = function() {
-      var iframe = true;
-      try { iframe = window.self !== window.top; } catch (e) {}
-      return iframe;
-    };
-    if (inIFrame()) return;
-    var d = document, s = d.createElement('script');
-    s.src = '//corywaters.disqus.com/embed.js'; s.async = true;
-    s.setAttribute('data-timestamp', +new Date());
-    (d.head || d.body).appendChild(s);
-  })();
-  </script>
-  <noscript>Please enable JavaScript to view the <a href="https://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
-</section>
-
-
-
-</main>
-
-      <footer class="footer">
-        <ul class="footer-links">
-          <li>
-            <a href="/index.xml" type="application/rss+xml" target="_blank">RSS feed</a>
-          </li>
-          <li>
-            <a href="https://gohugo.io/" class="footer-links-kudos">Made with <img src="/images/hugo-logo.png" alt="Img link to Hugo website" width="22" height="22"></a>
-          </li>
-        </ul>
-      </footer>
-
-    </div>
-    
 
 
 
@@ -495,16 +471,15 @@ nfl_urls &lt;- cross_df(list(year = seasons,
 
 <script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/r.min.js"></script>
 <script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/yaml.min.js"></script>
+<script src="//cdn.bootcss.com/highlight.js/9.11.0/languages/python.min.js"></script>
 <script>hljs.configure({languages: []}); hljs.initHighlightingOnLoad();</script>
 
 
 
-    
-<script src="/js/math-code.js"></script>
-<script async src="//cdn.bootcss.com/mathjax/2.7.1/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-
-
-    
+  
+  </footer>
+  </article>
+  
 <script type="application/javascript">
 var doNotTrack = false;
 if (!doNotTrack) {

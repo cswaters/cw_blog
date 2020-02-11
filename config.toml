@@ -1,7 +1,7 @@
 baseurl = "https://www.corywaters.com/"
 languageCode = "en-us"
 title = "Questioning Certainty"
-theme = "hugo-lithium"
+theme = "hugo-ivy"
 googleAnalytics = "UA-107296047-1"
 disqusShortname = "corywaters"
 ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
@@ -26,12 +26,12 @@ ignoreFiles = ["\\.Rmd$", "\\.Rmarkdown$", "_files$", "_cache$"]
     url = "https://github.com/cswaters"
 
 [params]
-    description = "The website of Cory Waters. One man's opinion... but it's a good one."
+    description = "The website of Cory Waters."
 
     # options for highlight.js (version, additional languages, and theme)
     highlightjsVersion = "9.11.0"
     highlightjsCDN = "//cdn.bootcss.com"
-    highlightjsLang = ["r", "yaml"]
+    highlightjsLang = ["r", "yaml", "python"]
     highlightjsTheme = "tomorrow"
 
     MathJaxCDN = "//cdn.bootcss.com"

@@ -73,16 +73,6 @@ The GAME.csv file contains all the information we’re looking for (which isn’
     </item>
     
     <item>
-      <title>Links</title>
-      <link>/links/</link>
-      <pubDate>Sun, 03 Sep 2017 02:13:50 +0000</pubDate>
-      
-      <guid>/links/</guid>
-      <description>Links to sites I follow.
-Economics  Econlog - http://econlog.econlib.org Arnold Kling http://www.arnoldkling.com/blog/feed/ Marginal Revolution http://marginalrevolution.com  Politics  Anne Applebaum - https://www.washingtonpost.com/people/anne-applebaum/ Reason http://reason.com Commentary https://www.commentarymagazine.com  Law  Volokh Conspiracy https://www.washingtonpost.com/news/volokh-conspiracy  Genetics &amp;amp; Evolution  Gene Expression http://gnxp.nofe.me West Hunter https://westhunt.wordpress.com  Stats &amp;amp; Data  Andrew Gelman http://andrewgelman.com Chris Stucchio https://www.chrisstucchio.com R-Bloggers https://www.r-bloggers.com  Sports Ranking and Prediction  Nutshell Sports http://www.nutshellsports.com/wilson/ Prediction Tracker http://www.thepredictiontracker.com NetProphet http://netprophetblog.</description>
-    </item>
-    
-    <item>
       <title>Creating a football dataset, Take Two</title>
       <link>/2017/08/25/creating-a-football-dataset-take-two/</link>
       <pubDate>Fri, 25 Aug 2017 00:00:00 +0000</pubDate>
@@ -131,18 +121,7 @@ note: the only long term documented exception to this rule I know of is RAS but 
       
       <guid>/2017/05/12/sports-betting-links-to-data-and-stats/</guid>
       <description>This post got decent traffic on the old blog. It’s the one article that made it to this new version. The title was “Sports Betting Data Downloads” (which wasn’t a good name in hindsight). A quarter of those links are dead, and there’s new material out there. Here’s an updated but pared down list.
-Data Pay For Data note: I don’t make a dime off recommending any of these
-Most of the links are US focused unless otherwise noted.</description>
-    </item>
-    
-    <item>
-      <title>About</title>
-      <link>/about/</link>
-      <pubDate>Wed, 03 May 2017 02:13:50 +0000</pubDate>
-      
-      <guid>/about/</guid>
-      <description>A place to post: links to things I find interesting, my R and python side projects, and tutorials that I wished existed when I was learning.
-This blog is built in Rstudio using the blogdown package.</description>
+Data Pay For Data note: I don’t make a dime off recommending any of these</description>
     </item>
     
     <item>
@@ -151,7 +130,7 @@ This blog is built in Rstudio using the blogdown package.</description>
       <pubDate>Wed, 03 May 2017 02:13:50 +0000</pubDate>
       
       <guid>/contact/</guid>
-      <description>Contact If for some reason you want to get in touch with me you can contact me via twitter or by email: corywaters@ &amp;ldquo;the gmail domain.&amp;rdquo;</description>
+      <description>Contact If you want to get in touch with me you can contact me via by email: corywaters@ &amp;ldquo;the gmail domain.&amp;rdquo;</description>
     </item>
     
     <item>
@@ -160,9 +139,29 @@ This blog is built in Rstudio using the blogdown package.</description>
       <pubDate>Wed, 03 May 2017 02:13:50 +0000</pubDate>
       
       <guid>/projects/</guid>
-      <description>I am CDO at VoteStrategies a political consulting firm.
-Below are some of the demos we send to potential clients:
- Showcase Demo Analysis of District Static Plots District Analysis  I&amp;rsquo;m also in the process of putting together a book on applying R to sports betting. It probably won&amp;rsquo;t be done anytime soon but I&amp;rsquo;ve started putting up some of the scripts to github. It&amp;rsquo;s focused on US sports, mainly NFL and NBA.</description>
+      <description>I&amp;rsquo;m a data scientist at a political consulting firm.
+Here&amp;rsquo;s some examples of work I&amp;rsquo;ve done in politics.
+   Link Description     🔗 Showcase Dashboard of plotting examples   🔗 Analysis of District Plotly version of static demographic graphs   🔗 District Analysis Static Charts with ToC   🔗 Election Results Interactive mapping of results by polling place   🔗 Google Trends Google trends by congressional district   🔗 Allen West out of state Donations    🔗 Precinct Viewer Explore precinct data    I&amp;rsquo;m also in the process of putting together a book on applying R to sports betting.</description>
+    </item>
+    
+    <item>
+      <title>About</title>
+      <link>/about/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/about/</guid>
+      <description>Things I find interesting, my R and python side projects, and tutorials that I wished existed when I was learning.
+This blog is built in Rstudio using the blogdown package.</description>
+    </item>
+    
+    <item>
+      <title>Links</title>
+      <link>/links/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/links/</guid>
+      <description>Links to sites I follow.
+Economics  Econlog - http://econlog.econlib.org Arnold Kling http://www.arnoldkling.com/blog/feed/ Marginal Revolution http://marginalrevolution.com  Politics  Anne Applebaum - https://www.washingtonpost.com/people/anne-applebaum/ Reason http://reason.com Commentary https://www.commentarymagazine.com  Law  Volokh Conspiracy https://www.washingtonpost.com/news/volokh-conspiracy  Genetics &amp;amp; Evolution  Gene Expression http://gnxp.nofe.me West Hunter https://westhunt.wordpress.com  Stats &amp;amp; Data  Andrew Gelman http://andrewgelman.com Chris Stucchio https://www.chrisstucchio.com R-Bloggers https://www.r-bloggers.com  Sports Ranking and Prediction  Nutshell Sports http://www.nutshellsports.com/wilson/ Prediction Tracker http://www.thepredictiontracker.com NetProphet http://netprophetblog.</description>
     </item>
     
   </channel>
