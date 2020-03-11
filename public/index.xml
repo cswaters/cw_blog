@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8" standalone="yes" ?>
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
     <title>Home on Questioning Certainty</title>
@@ -141,7 +141,7 @@ Data Pay For Data note: I don’t make a dime off recommending any of these</des
       <guid>/projects/</guid>
       <description>I&amp;rsquo;m a data scientist at a political consulting firm.
 Here&amp;rsquo;s some examples of work I&amp;rsquo;ve done in politics.
-   Link Description     🔗 Showcase Dashboard of plotting examples   🔗 Analysis of District Plotly version of static demographic graphs   🔗 District Analysis Static Charts with ToC   🔗 Election Results Interactive mapping of results by polling place   🔗 Google Trends Google trends by congressional district   🔗 Allen West out of state Donations    🔗 Precinct Viewer Explore precinct data    I&amp;rsquo;m also in the process of putting together a book on applying R to sports betting.</description>
+   Link Description     🔗 Showcase Dashboard of plotting examples   🔗 Analysis of District Plotly version of static demographic graphs   🔗 District Analysis Static Charts with ToC   🔗 Election Results Interactive mapping of results by polling place   🔗 Google Trends Google trends by congressional district   🔗 Allen West out of state Donations    🔗 Precinct Viewer Explore precinct data   I&amp;rsquo;m also in the process of putting together a book on applying R to sports betting.</description>
     </item>
     
     <item>
@@ -151,6 +151,7 @@ Here&amp;rsquo;s some examples of work I&amp;rsquo;ve done in politics.
       
       <guid>/about/</guid>
       <description>Things I find interesting, my R and python side projects, and tutorials that I wished existed when I was learning.
+If you want to get in touch with me you can contact me via by email: corywaters@ &amp;ldquo;the gmail domain.&amp;rdquo;
 This blog is built in Rstudio using the blogdown package.</description>
     </item>
     
@@ -162,6 +163,26 @@ This blog is built in Rstudio using the blogdown package.</description>
       <guid>/links/</guid>
       <description>Links to sites I follow.
 Economics  Econlog - http://econlog.econlib.org Arnold Kling http://www.arnoldkling.com/blog/feed/ Marginal Revolution http://marginalrevolution.com  Politics  Anne Applebaum - https://www.washingtonpost.com/people/anne-applebaum/ Reason http://reason.com Commentary https://www.commentarymagazine.com  Law  Volokh Conspiracy https://www.washingtonpost.com/news/volokh-conspiracy  Genetics &amp;amp; Evolution  Gene Expression http://gnxp.nofe.me West Hunter https://westhunt.wordpress.com  Stats &amp;amp; Data  Andrew Gelman http://andrewgelman.com Chris Stucchio https://www.chrisstucchio.com R-Bloggers https://www.r-bloggers.com  Sports Ranking and Prediction  Nutshell Sports http://www.nutshellsports.com/wilson/ Prediction Tracker http://www.thepredictiontracker.com NetProphet http://netprophetblog.</description>
+    </item>
+    
+    <item>
+      <title>talks</title>
+      <link>/talks/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/talks/</guid>
+      <description>I gave a talk about sports betting and technology to the Palm Beach Data Science group.
+ Sharps and Squares: Sportsbetting 101  </description>
+    </item>
+    
+    <item>
+      <title>uses</title>
+      <link>/uses/</link>
+      <pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate>
+      
+      <guid>/uses/</guid>
+      <description>Tools and services I uses, I recommend everything that&amp;rsquo;s listed below.
+Hardware  MacBook Pro (13-inch, 2017) iPhone 6s Plus  Development  Rstudio VSCode JupyterLab Anaconda Distribution Paperspace Terminal  Note taking  Text editor: The Archive Markdown previewer and writing tools: Marked2 Programming Notebook: Quiver iOS note taking: Editorial  Services  RSS feed reader: Feedbin Web Clipping: Pinboard Cloud Storage: Dropbox Static Site Hosting: Netlify VPN: ExpressVPN  Reading  Kindle Paperwhite  Mac Software  App launcher: Alfred4 Email client: Airmail Password Manager: 1Password Desktop Epub Reader: Murasaki  </description>
     </item>
     
   </channel>
