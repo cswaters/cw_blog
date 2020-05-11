@@ -12,11 +12,11 @@ Tools and services I uses, I recommend everything that's listed below.
 ## Development
 
 - [Rstudio](https://rstudio.com)
-- [VSCode](https://code.visualstudio.com)
-- [JupyterLab](https://jupyter.org)
+- [Jupyter](https://jupyter.org)
 - [Anaconda Distribution](https://anaconda.org)
 - [Paperspace](https://www.paperspace.com)
-- Terminal
+- Terminal: [oh-my-zsh](https://ohmyz.sh/)
+- Editor: [neovim](http://neovim.io)
 
 ## Note taking
 
@@ -45,3 +45,4 @@ Tools and services I uses, I recommend everything that's listed below.
 - Email client: [Airmail](https://airmailapp.com)
 - Password Manager: [1Password](https://1password.com)
 - Desktop Epub Reader: [Murasaki](https://genjiapp.com/mac/murasaki/index_en.html)
+- Web Browser: [Brave](https://brave.com/)
